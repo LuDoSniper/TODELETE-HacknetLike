@@ -15,11 +15,17 @@ Chaque panneau peut être détaché (↗), déplacé par son titre, redimensionn
 ## Personnages IA locaux
 
 1. Installer Ollama pour Windows : https://ollama.com/download/windows
-2. Dans PowerShell : `ollama pull qwen2.5:7b` (environ 4,7 Go). Ollama doit être lancé.
+2. Dans PowerShell : `ollama pull qwen2.5:7b` (environ 4,7 Go). Ollama doit être installé et accessible dans le PATH ; le lanceur du jeu démarre sa propre instance.
 3. Démarrer le jeu normalement : `npm run dev`. Aucune clé API, aucun service cloud requis.
 
-Le modèle par défaut est `qwen2.5:7b`. Pour une machine plus modeste, télécharger `ollama pull qwen2.5:3b` puis définir `$env:MESH_NPC_MODEL = "qwen2.5:3b"` avant `npm run dev`. Le modèle plus petit peut être moins cohérent. Le client HTTP est limité à `127.0.0.1:11434` ; ne pas exposer Ollama au réseau. Utiliser exclusivement un modèle installé localement et désactiver les fonctions cloud d'Ollama si elles sont activées. Le jeu ne télécharge aucun modèle automatiquement.
+Le modèle par défaut est `qwen2.5:7b`. Pour une machine plus modeste, télécharger `ollama pull qwen2.5:3b` puis définir `$env:MESH_NPC_MODEL = "qwen2.5:3b"` avant `npm run dev`. Le modèle plus petit peut être moins cohérent. Le lanceur utilise une instance privée sur `127.0.0.1:11435`. Le serveur lancé manuellement sans le lanceur utilise `127.0.0.1:11434`. Ne pas exposer Ollama au réseau. Utiliser exclusivement un modèle installé localement et désactiver les fonctions cloud d'Ollama si elles sont activées. Le jeu ne télécharge aucun modèle automatiquement.
 
 Le moteur fournit seulement la personnalité du contact, des faits déjà confirmés et une courte portion de sa propre conversation. Les solutions, fichiers, jetons et états techniques internes ne sont pas transmis. Une génération et une vérification structurée sont effectuées avant affichage ; les requêtes hors rôle évidentes sont traitées sans modèle. Le modèle ne dispose d'aucun outil ni accès au moteur. Les barrières réduisent fortement les détournements mais ne garantissent pas un jeu de rôle infaillible. Si Ollama est arrêté ou indisponible, les personnages répondent par un message de liaison dégradée ; le reste du jeu fonctionne normalement. La première réponse peut être lente pendant le chargement du modèle.
 
 `npm test` inclut des tests avec un serveur Ollama simulé ; les tests ne nécessitent pas de télécharger le modèle. Ils ne remplacent pas des essais adversariaux avec un véritable modèle.
+
+## Accès, documentation et fermeture d'Ollama
+
+Un hôte découvert n'accorde plus de shell. Les quelques comptes invités publics restent accessibles ; les autres exigent une autorisation spécifique à leurs services. `probe <hôte>` indique notamment l'état et l'authentification du shell. `svc <hôte> <port> help` affiche le protocole, `svc <hôte> <port> docs` les documents publics. `man <commande>` contient des pages structurées, sans solution de mission. Les anciens accès invités devenus privés sont révoqués à l'ouverture d'une sauvegarde ; le coffre et la progression restent intacts.
+
+Sous Windows, quitter l'application Ollama de la zone de notification et désactiver son démarrage automatique si on ne l'utilise que pour Mesh. Après le téléchargement initial du modèle, `npm run dev` ou `npm start` lance le serveur Ollama privé et le ferme lors de l'arrêt normal du jeu avec Ctrl+C. Le modèle est déchargé après 45 secondes d'inactivité. Une autre instance Ollama n'est jamais arrêtée volontairement par Mesh. Fermer brutalement le processus ou éteindre le PC ne garantit pas l'exécution du nettoyage. Si nécessaire, `ollama stop qwen2.5:7b` décharge le modèle d'une instance standard ; pour l'instance privée, utiliser `$env:OLLAMA_HOST = "127.0.0.1:11435"` avant la commande. Le jeu fonctionne sans Ollama, mais les conversations sont limitées.
