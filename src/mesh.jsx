@@ -8,6 +8,8 @@ import {io} from 'socket.io-client';
 import '@xterm/xterm/css/xterm.css';
 import './mesh.css';
 import {initVim,vimKey,previousWord} from './vim.mjs';
+import {themes,initialPrefs,normalizePrefs,loadPrefs,storePrefs,palette,movePanel,boundRect,defaultRect,terminalTheme,clamp,alpha} from './workspace.mjs';
+import {WindowControls,WorkspaceSettings} from './workspace-ui.jsx';
 
 const socket=io({autoConnect:false});
 const esc='\x1b[';
@@ -17,11 +19,21 @@ function sound(){if(audio){if(audio.state==='running'){void audio.suspend();retu
 function chime(){if(audio?.state!=='running')return;const o=audio.createOscillator(),g=audio.createGain();o.frequency.setValueAtTime(820,audio.currentTime);o.frequency.exponentialRampToValueAtTime(410,audio.currentTime+.35);g.gain.setValueAtTime(.05,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.5);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.5);}
 const clean=s=>String(s).replace(/[\x00-\x08\x0b-\x1f\x7f]/g,'');
 function App(){
- const [state,setState]=useState(null),[online,setOnline]=useState(false),[audible,setAudible]=useState(false),[clock,setClock]=useState(new Date()),[mapVisible,setMapVisible]=useState(true),[mapFull,setMapFull]=useState(false),[chatOpen,setChatOpen]=useState(true),[contact,setContact]=useState('iris'),[message,setMessage]=useState(''),[chatBusy,setChatBusy]=useState(false),[chatError,setChatError]=useState('');
- const termEl=useRef(null),mapEl=useRef(null),net=useRef(null),nodeData=useRef(new DataSet()),edgeData=useRef(new DataSet()),termRef=useRef(null),current=useRef(null),sendChatRef=useRef(null),chatScroll=useRef(null),positions=useRef({});
+ const [state,setState]=useState(null),[online,setOnline]=useState(false),[audible,setAudible]=useState(false),[clock,setClock]=useState(new Date()),[mapVisible,setMapVisible]=useState(true),[mapFull,setMapFull]=useState(false),[chatOpen,setChatOpen]=useState(true),[contact,setContact]=useState('iris'),[message,setMessage]=useState(''),[chatBusy,setChatBusy]=useState(false),[chatError,setChatError]=useState(''),[prefs,setPrefs]=useState(loadPrefs),[settings,setSettings]=useState(false),[front,setFront]=useState('');
+ const termEl=useRef(null),mapEl=useRef(null),net=useRef(null),nodeData=useRef(new DataSet()),edgeData=useRef(new DataSet()),termRef=useRef(null),current=useRef(null),sendChatRef=useRef(null),chatScroll=useRef(null),positions=useRef({}),workspaceRef=useRef(null),prefsRef=useRef(prefs);
+ prefsRef.current=prefs;
+ const updatePrefs=fn=>setPrefs(p=>normalizePrefs(typeof fn==='function'?fn(p):fn));
+ const floatPanel=id=>{setFront(id);updatePrefs(p=>{const f={...p.floating};if(f[id])delete f[id];else f[id]=defaultRect(id);return {...p,floating:f,hidden:p.hidden.filter(x=>x!==id)};});};
+ const hidePanel=id=>updatePrefs(p=>({...p,hidden:p.hidden.includes(id)?p.hidden.filter(x=>x!==id):[...p.hidden,id]}));
+ const theme=palette(prefs),vars=Object.fromEntries(['base','panel','chrome','line','ink','muted','accent','green','blue','warn','map','terminal','foreground','selection'].map(k=>['--'+k,theme[k]]));
+ vars['--terminal-bg']=alpha(theme.terminal,prefs.terminalOpacity);vars['--wallpaper']=prefs.wallpaper?'linear-gradient(#000'+Math.round(prefs.wallpaperDim*255/100).toString(16).padStart(2,'0')+',#000'+Math.round(prefs.wallpaperDim*255/100).toString(16).padStart(2,'0')+'),url("'+prefs.wallpaper+'")':'none';vars['--dock-width']=prefs.sideWidth+'%';
+ const panelClass=(id,base)=>base+(prefs.floating[id]?' floating':'')+(prefs.hidden.includes(id)?' panelHidden':'')+(front===id?' front':'');
+ const panelStyle=id=>{const f=prefs.floating[id];return f?{left:f.x+'%',top:f.y+'%',width:f.w+'%',height:f.h+'%'}:{order:prefs.order.indexOf(id)};};
+ const windowProps=id=>({id,prefs,workspaceRef,updatePrefs,floatPanel,hidePanel,setFront});
+ useEffect(()=>{const t=termRef.current;if(t)t.options.theme=terminalTheme(prefs);},[prefs.theme,prefs.custom,prefs.terminalOpacity]);
  useEffect(()=>{const id=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(id);},[]);
  useEffect(()=>{
-  const t=new Terminal({fontFamily:'Cascadia Code, Consolas, monospace',fontSize:14,lineHeight:1.18,cursorBlink:true,cursorStyle:'block',scrollback:6000,convertEol:true,theme:{background:'#191b20',foreground:'#d2d4db',cursor:'#d8d8e2',selectionBackground:'#454d6b'}});
+  const t=new Terminal({fontFamily:'Cascadia Code, Consolas, monospace',fontSize:14,lineHeight:1.18,cursorBlink:true,cursorStyle:'block',scrollback:6000,convertEol:true,allowTransparency:true,theme:terminalTheme(prefsRef.current)});
   termRef.current=t;const fit=new FitAddon();t.loadAddon(fit);t.open(termEl.current);fit.fit();const observer=new ResizeObserver(()=>{fit.fit();if(editor)renderEditor();});observer.observe(termEl.current);
   let disposed=false,id='',buffer='',pos=0,history=[],historyIndex=0,draft='',busy=true,tabKey='',renderedRows=1,renderedCursorRow=0,renderedCols=0,renderedCursorCol=0,editor=null;
   const set=s=>{current.current=s;setState(s);};
@@ -70,13 +82,17 @@ function App(){
    if(line==='clear'){t.clear();t.write(esc+'2J'+esc+'H');done();return;}
    if(line==='sound'){const active=sound();setAudible(active);print('Ambiance '+(active?'activée':'désactivée'));done();return;}
    if(line==='chat open'){setChatOpen(v=>!v);done();return;}
+   if(line==='workspace'){setSettings(v=>!v);done();return;}
+   if(line==='theme'){print('Thèmes : '+Object.keys(themes).join(', '));done();return;}
+   if(line.startsWith('theme ')){const key=line.slice(6).trim().toLowerCase();if(Object.hasOwn(themes,key)){updatePrefs(p=>({...p,theme:key,custom:{}}));print('Thème : '+themes[key].label);}else print('Thème inconnu. Tape theme.');done();return;}
+   if(line.startsWith('popup ')){const key=line.slice(6).trim();if(['terminal','map','chat','resources','defense'].includes(key)){if(key==='chat')setChatOpen(true);setMapVisible(true);floatPanel(key);}else print('popup terminal|map|chat|resources|defense');done();return;}
    if(line==='map layout'){positions.current={};try{localStorage.removeItem('mesh-layout-v3:'+id);}catch{};const nodes=current.current?.nodes||[],zones=['EDGE','INNER','AUDIT'];for(const node of nodes){const i=nodes.filter(n=>n.zone===node.zone).findIndex(n=>n.id===node.id),col=zones.indexOf(node.zone);net.current?.moveNode(node.id,col*290+(i%2)*110,Math.floor(i/2)*100);}net.current?.fit({animation:false});done();return;}
    if(line==='map'){setMapFull(false);setMapVisible(v=>!v);done();return;}
-   if(line==='map full'){setMapVisible(true);setMapFull(v=>!v);done();return;}
+   if(line==='map full'){setMapVisible(true);floatPanel('map');done();return;}
    if(line==='map reset'){net.current?.fit({animation:false});done();return;}
    if(line==='reset'){print('Pour recommencer : reset --confirm');done();return;}
    if(line==='reset --confirm'){localStorage.removeItem('mesh-save-v3');location.reload();return;}
-   if(line==='help'){print('COMMANDES DE CONSOLE\n  sound        ambiance sonore\n  map          afficher/masquer la carte\n  map full     agrandir/reduire la carte\n  map reset    recentrer la carte\n  map layout   restaurer les positions\n  chat open   afficher/masquer la messagerie\n  reset        nouvelle partie\n');}
+   if(line==='help'){print('COMMANDES DE CONSOLE\n  sound        ambiance sonore\n  map          afficher/masquer la carte\n  map full     agrandir/reduire la carte\n  map reset    recentrer la carte\n  map layout   restaurer les positions\n  chat open   afficher/masquer la messagerie\n  workspace   personnaliser le bureau\n  theme [nom] choisir un thème\n  popup <nom> détacher une fenêtre\n  reset        nouvelle partie\n');}
    busy=true;socket.timeout(8000).emit('command',{id,line},(err,r)=>{if(disposed)return;if(err||r?.error){t.writeln(colors.red+(r?.error||'Connexion interrompue. Réessayez.')+colors.reset);done();return;}
     const old=current.current?.phase||0,oldSeq=current.current?.story?.messages?.at(-1)?.id||0;if(r.out)t.writeln((r.code?colors.red:'')+clean(r.out)+colors.reset);set(r.state);
     if((r.state.story?.messages?.at(-1)?.id||0)>oldSeq){chime();t.writeln(colors.dim+'\n[ Nouveau message · messagerie / chat ]'+colors.reset);}
@@ -120,31 +136,34 @@ function App(){
   nodeData.current.update(newNodes);const edges=new Map();for(const n of state.nodes)for(const x of n.links){const id=[n.id,x].sort().join(':');edges.set(id,{id,from:n.id,to:x});}edgeData.current.update([...edges.values()]);
   const sig=state.nodes.map(n=>n.id).join(',');if(sig!==mapSignature.current){mapSignature.current=sig;net.current.fit({animation:false});}
  },[state]);
+ useEffect(()=>{const n=net.current;if(n)n.setOptions({nodes:{font:{color:theme.ink}},edges:{color:theme.line}});},[theme.ink,theme.line]);
  const memory=state?.ram||{used:0,total:8,hosts:[]};
  const hosts=state?.nodes||[];
  const messages=(state?.story?.messages||[]).filter(m=>m.contact===contact),contacts=state?.story?.contacts||['iris'],battle=state?.story?.battle;
  const sendMessage=e=>{e.preventDefault();if(!message.trim()||chatBusy)return;setChatBusy(true);setChatError('');sendChatRef.current?.(contact,message,err=>{setChatBusy(false);if(err)setChatError(err);else setMessage('');});};
  useEffect(()=>{if(chatScroll.current)chatScroll.current.scrollTop=chatScroll.current.scrollHeight;},[state?.story?.messages,contact,chatOpen]);
  useEffect(()=>{if(mapVisible)net.current?.fit({animation:false});},[mapVisible,mapFull]);
- return <main className={'layout '+(!mapVisible?'nomap':mapFull?'mapfull':'')}>
+ return <main style={vars} className={'layout '+(!mapVisible?'nomap ':'')+(prefs.side==='left'?'dockLeft ':'')+(prefs.floating.terminal?'terminalFloating ':'')+(prefs.wallpaper?'hasWallpaper':'')}>
   <header className="appbar">
    <div className="brand"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h5v14H3zM10 5h4v9h-4zM16 5h5v14h-5z" fill="currentColor"/></svg><b>mesh</b><span className="version">3.8</span></div>
    <div className="crumb"><span>Workspace</span><span className="slash">/</span><b>{state?.at||'desk'}</b></div>
-   <div className="appmeta"><button className="chatToggle" onClick={()=>setChatOpen(v=>!v)} aria-pressed={chatOpen}>Messages</button><span className={online?'connection online':'connection'}><i/>{online?'Connected':'Offline'}</span><span>{clock.toLocaleTimeString('fr-FR')}</span></div>
+   <div className="appmeta"><button className="chatToggle" onClick={()=>{setChatOpen(v=>!v);updatePrefs(p=>({...p,hidden:p.hidden.filter(x=>x!=='chat')}));}} aria-pressed={chatOpen}>Messages</button><button className="chatToggle" onClick={()=>setSettings(v=>!v)} aria-pressed={settings}>⚙ Bureau</button><span className={online?'connection online':'connection'}><i/>{online?'Connected':'Offline'}</span><span>{clock.toLocaleTimeString('fr-FR')}</span></div>
   </header>
-  <div className="workspace">
-   <section className="terminalPane">
-    <div className="shellbar"><span className="termIcon">›_</span><span>Terminal</span><span className="shellpath">{state?.cwd||'~'}</span></div>
+  <div className="workspace" ref={workspaceRef}>
+   <section className={panelClass("terminal","terminalPane")} style={panelStyle("terminal")} onPointerDown={()=>setFront("terminal")}>
+    <WindowControls {...windowProps("terminal")} title="›_ Terminal" detail={state?.cwd||"~"}/>
     <div className="terminal" ref={termEl}/>
     <div className="keybar"><span><kbd>Tab</kbd> Complete</span><span><kbd>↑ ↓</kbd> History</span><span><kbd>Ctrl ⌫</kbd> Word</span><span><kbd>Ctrl L</kbd> Clear</span><span><kbd>man shell</kbd> Reference</span></div>
+    <WindowControls {...windowProps("terminal")} resize/>
    </section>
    <aside className={"inspector "+(chatOpen?"hasChat":"")+(battle&&["pending","active","failed"].includes(battle.state)?" hasBattle":"")}>
-    {chatOpen&&<section className="chatPanel"><div className="sectionTitle"><span>Messages</span><span className="muted">Canal sécurisé</span></div><div className="contacts">{contacts.map(c=><button key={c} className={contact===c?'chosen':''} onClick={()=>setContact(c)}><span className={'contactDot '+c}/>{c==='iris'?'Iris':'Mara'}</button>)}</div><div className="chatHistory" ref={chatScroll}>{messages.map(m=><article className={m.author==='operator'?'outgoing':'incoming'} key={m.id}><small>{m.author==='operator'?'Vous':m.author==='iris'?'Iris':'Mara'}</small><p>{m.body}</p></article>)}</div><form className="chatCompose" onSubmit={sendMessage}><input aria-label="Message" placeholder="Écrire un message…" value={message} maxLength={500} onChange={e=>setMessage(e.target.value)}/><button type="submit" disabled={chatBusy||!message.trim()}>Envoyer</button></form>{chatError&&<small className="chatError">{chatError}</small>}</section>}
-    {battle&&['pending','active','failed'].includes(battle.state)&&<section className="defensePanel"><div className="sectionTitle"><span>Incident réseau</span><span className="alarm">● {battle.state==='active'?'En cours':'En attente'}</span></div><div className="defenseBody"><p>{battle.last||'Activité hostile détectée. Canal de défense disponible.'}</p>{battle.state==='active'&&<><div className="resourceRow"><span>Intégrité</span><b>{battle.integrity}%</b></div><div className="meter trace"><i style={{width:battle.integrity+'%'}}/></div>{battle.mode==='live'&&<div className="resourceRow"><span>Temps restant</span><b>{Math.max(0,Math.ceil((battle.deadline-clock.getTime())/1000))} s</b></div>}</>}<code>{battle.state==='active'?'defense inspect':'defense status'}</code></div></section>}
-    <section className="map"><div className="sectionTitle"><span>Network</span><span className="muted">{hosts.length} hosts · drag to arrange</span></div><div className="zones">{['EDGE','INNER','AUDIT'].map(z=><span key={z} className={state?.routes?.includes(z)?'zone active':'zone'}><i/>{z.toLowerCase()}</span>)}</div><div className="mapCanvas" ref={mapEl}/><div className="legend"><span><i className="currentNode"/> Current</span><span><i className="knownNode"/> Known</span><span><i className="proxyNode"/> Relay</span></div></section>
-    <section className="resources"><div className="sectionTitle"><span>Resources</span><span className="muted">{state?.jobs?.length||0} jobs</span></div><div className="resourceBody"><div className="resourceRow"><span>Memory</span><b>{memory.used} <small>/ {memory.total} MiB</small></b></div><div className="meter"><i style={{width:100*memory.used/Math.max(1,memory.total)+'%'}}/></div><div className="resourceRow"><span>Observation</span><b>{state?.trace||0}<small>%</small></b></div><div className="meter trace"><i style={{width:(state?.trace||0)+'%'}}/></div>{state?.jobs?.length>0&&<div className="joblist">{state.jobs.map(j=><div key={j.id}><code>#{j.id}</code><span>{j.type} / {j.target}</span><small>{j.state}</small></div>)}</div>}</div></section>
-    <section className="activity"><div className="sectionTitle"><span>Session log</span><span className="muted">Recent</span></div><div className="activityBody">{[...(state?.activity||[])].reverse().slice(0,5).map((a,i)=><div key={i}><span>{a.host}</span><b>{a.command}</b><em className={a.code?'dead':'live'}>{a.code?'ERR':'OK'}</em></div>)}</div></section>
+    <section className={panelClass("chat","chatPanel")+(!chatOpen?" panelHidden":"")} style={panelStyle("chat")} onPointerDown={()=>setFront("chat")}><WindowControls {...windowProps("chat")} title="Messages" detail="Canal sécurisé"/><div className="contacts">{contacts.map(c=><button key={c} className={contact===c?'chosen':''} onClick={()=>setContact(c)}><span className={'contactDot '+c}/>{c==='iris'?'Iris':'Mara'}</button>)}</div><div className="chatHistory" ref={chatScroll}>{messages.map(m=><article className={m.author==='operator'?'outgoing':'incoming'} key={m.id}><small>{m.author==='operator'?'Vous':m.author==='iris'?'Iris':'Mara'}</small><p>{m.body}</p></article>)}</div><form className="chatCompose" onSubmit={sendMessage}><input aria-label="Message" placeholder="Écrire un message…" value={message} maxLength={500} onChange={e=>setMessage(e.target.value)}/><button type="submit" disabled={chatBusy||!message.trim()}>Envoyer</button></form>{chatError&&<small className="chatError">{chatError}</small>}<WindowControls {...windowProps("chat")} resize/></section>
+    {battle&&['pending','active','failed'].includes(battle.state)&&<section className={panelClass("defense","defensePanel")} style={panelStyle("defense")} onPointerDown={()=>setFront("defense")}><WindowControls {...windowProps("defense")} title="Incident réseau" detail={battle.state==="active"?"En cours":"En attente"}/><div className="defenseBody"><p>{battle.last||'Activité hostile détectée. Canal de défense disponible.'}</p>{battle.state==='active'&&<><div className="resourceRow"><span>Intégrité</span><b>{battle.integrity}%</b></div><div className="meter trace"><i style={{width:battle.integrity+'%'}}/></div>{battle.mode==='live'&&<div className="resourceRow"><span>Temps restant</span><b>{Math.max(0,Math.ceil((battle.deadline-clock.getTime())/1000))} s</b></div>}</>}<code>{battle.state==='active'?'defense inspect':'defense status'}</code></div><WindowControls {...windowProps("defense")} resize/></section>}
+    <section className={panelClass("map","map")} style={panelStyle("map")} onPointerDown={()=>setFront("map")}><WindowControls {...windowProps("map")} title="Network" detail={hosts.length+" hosts"}/><div className="zones">{['EDGE','INNER','AUDIT'].map(z=><span key={z} className={state?.routes?.includes(z)?'zone active':'zone'}><i/>{z.toLowerCase()}</span>)}</div><div className="mapCanvas" ref={mapEl}/><div className="legend"><span><i className="currentNode"/> Current</span><span><i className="knownNode"/> Known</span><span><i className="proxyNode"/> Relay</span></div><WindowControls {...windowProps("map")} resize/></section>
+    <section className={panelClass("resources","resources")} style={panelStyle("resources")} onPointerDown={()=>setFront("resources")}><WindowControls {...windowProps("resources")} title="Resources" detail={(state?.jobs?.length||0)+" jobs"}/><div className="resourceBody"><div className="resourceRow"><span>Memory</span><b>{memory.used} <small>/ {memory.total} MiB</small></b></div><div className="meter"><i style={{width:100*memory.used/Math.max(1,memory.total)+'%'}}/></div><div className="resourceRow"><span>Observation</span><b>{state?.trace||0}<small>%</small></b></div><div className="meter trace"><i style={{width:(state?.trace||0)+'%'}}/></div>{state?.jobs?.length>0&&<div className="joblist">{state.jobs.map(j=><div key={j.id}><code>#{j.id}</code><span>{j.type} / {j.target}</span><small>{j.state}</small></div>)}</div>}</div><WindowControls {...windowProps("resources")} resize/></section>
+
    </aside>
+   {settings&&<WorkspaceSettings prefs={prefs} updatePrefs={updatePrefs} close={()=>setSettings(false)} reset={()=>{updatePrefs(p=>({...p,side:"right",sideWidth:33,order:initialPrefs().order,floating:{},hidden:[]}));setChatOpen(true);setMapVisible(true);}} showChat={()=>setChatOpen(true)}/>}
   </div>
   <footer><div><span className="statusDot"/>{online?'Session active':'Disconnected'}<span className="separator"/>Local simulation</div><div><span>{audible?'Audio on':'Audio off'}</span><span className="separator"/>Auto-save<span className="separator"/><span>{state?.depth||1} sessions</span></div></footer>
  </main>;
