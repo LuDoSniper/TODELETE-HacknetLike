@@ -21,7 +21,7 @@ async function respondDialogue(id,contact,body,ack,terminal=false){
   await withState(id,ack,async state=>{const candidate=beginRoleplay(state,contact,body);await db.save.update({where:{id},data:{state:JSON.stringify(state)}});context=candidate;});
   if(!context)return;
   const result=await generateCharacterReply(context);
-  await withState(id,ack,async state=>{const out=finishRoleplay(state,context,result);await db.save.update({where:{id},data:{state:JSON.stringify(state)}});ack({state:view(state),source:result.source,...(terminal?{out,code:0}:{})});});
+  await withState(id,ack,async state=>{const out=finishRoleplay(state,context,result);await db.save.update({where:{id},data:{state:JSON.stringify(state)}});ack({state:view(state),source:result.source,...(terminal?{out:result.source==='offline'?'Canal local indisponible — vérifie Ollama.':out,code:result.source==='offline'?1:0}:{})});});
  }finally{pendingDialogue.delete(id);}
 }
 io.on('connection',socket=>{
