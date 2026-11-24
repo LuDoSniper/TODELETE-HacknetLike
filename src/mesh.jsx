@@ -96,7 +96,7 @@ function App(){
    if(line==='reset --confirm'){localStorage.removeItem('mesh-save-v3');location.reload();return;}
    if(line==='help'){print('COMMANDES DE CONSOLE\n  sound        ambiance sonore\n  map          afficher/masquer la carte\n  map full     agrandir/reduire la carte\n  map reset    recentrer la carte\n  map layout   restaurer les positions\n  chat open   afficher/masquer la messagerie\n  workspace   personnaliser le bureau\n  theme [nom] choisir un thème\n  popup <nom> détacher une fenêtre\n  reset        nouvelle partie\n');}
    busy=true;socket.timeout(/^talk\s/i.test(line)?115000:8000).emit('command',{id,line},(err,r)=>{if(disposed)return;if(err||r?.error){t.writeln(colors.red+(r?.error||'Connexion interrompue. Réessayez.')+colors.reset);done();return;}
-    const old=current.current?.phase||0,oldSeq=current.current?.story?.messages?.at(-1)?.id||0;if(r.out)t.writeln((r.code?colors.red:'')+clean(r.out)+colors.reset);set(r.state);
+    const old=current.current?.phase||0,oldSeq=current.current?.story?.messages?.at(-1)?.id||0;if(r.out)t.writeln((r.code?colors.red:'')+clean(r.out)+colors.reset);if(r.source==='offline')t.writeln(colors.dim+'[ Modèle local indisponible : vérifie Ollama. ]'+colors.reset);set(r.state);
     if((r.state.story?.messages?.at(-1)?.id||0)>oldSeq){chime();t.writeln(colors.dim+'\n[ Nouveau message · messagerie / chat ]'+colors.reset);}
     if(r.state.ending&&r.state.phase>old)t.writeln(colors.green+'\nFIN DE LA MISSION.\nMerci d’avoir joué.\n'+colors.reset);
     done();
