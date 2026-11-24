@@ -1,15 +1,7 @@
-# Second jeu — installation sans spoiler
+# Game 3 — Installation sans spoiler
 
-Version indépendante, branche game-2. Node.js 22+ recommandé.
+Node.js 22+ recommandé. `npm install`, `npm run setup`, `npm run dev`, puis http://localhost:5173.
 
-```sh
-npm install
-npm run setup
-npm run dev
-```
+Tout le gameplay se contrôle au terminal. Commencez par `mail`, `help`, `man network`, `man services`, `man vault`. `sound` active l'ambiance, `map` masque/affiche l'inspecteur, `reset --confirm` recommence. Les sauvegardes sont indépendantes des jeux précédents.
 
-Ouvrir http://localhost:5173. Tout le gameplay se contrôle au terminal. Tapez `help`, `man shell` et `mail` pour commencer. Le clavier et les raccourcis sont documentés dans le jeu. La commande `sound` active l'ambiance. `reset` propose de recommencer.
-
-Les sauvegardes sont indépendantes du premier jeu. Le réseau, les commandes et les services sont entièrement fictifs : aucune opération sur le système réel.
-
-Tests : `npm test`. Production : `npm run build`, puis `npm start` (http://localhost:3000).
+`npm test` teste les commandes et la campagne. `npm run build` puis `npm start` pour la version compilée. Tout le réseau et tous les services sont simulés.

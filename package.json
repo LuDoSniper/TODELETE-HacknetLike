@@ -1,14 +1,14 @@
 {
-  "name": "abysse",
-  "version": "2.0.0",
+  "name": "mesh-workspace",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"node --watch server/abysse/server.mjs\" \"vite\"",
+    "dev": "concurrently -k \"node --watch server/mesh/server.mjs\" \"vite\"",
     "setup": "prisma generate && prisma db push",
     "build": "vite build",
-    "start": "node server/abysse/server.mjs",
-    "test": "node --test server/abysse/*.test.mjs"
+    "start": "node server/mesh/server.mjs",
+    "test": "node --test server/mesh/*.test.mjs server/abysse/vim.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
