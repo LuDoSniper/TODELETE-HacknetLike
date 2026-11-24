@@ -20,7 +20,7 @@ export function normalizePrefs(raw){
  d.side=p.side==='left'?'left':'right';d.sideWidth=clamp(finite(p.sideWidth,33),23,65);
  d.order=[...new Set([...(Array.isArray(p.order)?p.order.filter(x=>d.order.includes(x)):[]),...d.order])];
  d.hidden=Array.isArray(p.hidden)?[...new Set(p.hidden.filter(x=>['chat','map','resources'].includes(x)))]:[];
- for(const id of panels){const f=p.floating?.[id];if(f&&typeof f==='object')d.floating[id]={x:clamp(finite(f.x,12),0,95),y:clamp(finite(f.y,12),0,95),w:clamp(finite(f.w,65),24,98),h:clamp(finite(f.h,70),20,98)};}
+ for(const id of panels){const f=p.floating?.[id];if(f&&typeof f==='object')d.floating[id]=boundRect({x:finite(f.x,12),y:finite(f.y,12),w:finite(f.w,65),h:finite(f.h,70)});}
  return d;
 }
 export const palette=p=>({...themes[p.theme]||themes.graphite,...p.custom});
@@ -28,6 +28,6 @@ export function movePanel(order,id,direction){const a=[...order],i=a.indexOf(id)
 export function boundRect(r){const w=clamp(r.w,24,98),h=clamp(r.h,20,98);return {x:clamp(r.x,0,100-w),y:clamp(r.y,0,100-h),w,h};}
 export const defaultRect=id=>boundRect(id==='terminal'?{x:8,y:8,w:78,h:80}:id==='chat'?{x:22,y:8,w:55,h:78}:{x:12,y:9,w:76,h:80});
 export function alpha(hex,opacity){return hex+Math.round(clamp(opacity,0,100)*255/100).toString(16).padStart(2,'0');}
-export function terminalTheme(p){const t=palette(p);return {background:p.terminalOpacity===100?t.terminal:alpha(t.terminal,p.terminalOpacity),foreground:t.foreground,cursor:t.foreground,selectionBackground:t.selection};}
+export function terminalTheme(p){const t=palette(p);return {background:p.terminalOpacity===100?t.terminal:alpha(t.terminal,p.terminalOpacity),foreground:t.foreground,cursor:p.theme==='graphite'&&!p.custom.foreground?'#d8d8e2':t.foreground,selectionBackground:t.selection};}
 export function loadPrefs(){try{return normalizePrefs(JSON.parse(localStorage.getItem('mesh-workspace-v1')||'null'));}catch{return initialPrefs();}}
 export function storePrefs(p){try{localStorage.setItem('mesh-workspace-v1',JSON.stringify(p));return true;}catch{return false;}}
