@@ -1,7 +1,7 @@
 // Story dialogue and adversarial game simulation. No real network or process operations.
 const names={iris:'Iris',mara:'Mara',system:'Mesh'};
 const normalize=s=>s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'');
-import {characterContext,characterFallback,rejectInput} from './characters.mjs';
+import {characterContext,characterFallback,rejectInput,relationship,applyRelationship,noteProgress,referenceDocument} from './characters.mjs';
 const brief=[
  "Salut, c'est Iris. On m'a signalé qu'un dossier a été modifié cette nuit. J'aimerais retrouver le reçu original, mais je n'ai pas accès au registre depuis mon poste. Tu peux regarder de ton côté ?",
  "J'ai reçu le document. Il y a quelque chose d'étrange dans ce mandat de transport. Je te laisse regarder les contrôleurs de routage.",
@@ -13,6 +13,7 @@ const brief=[
 ];
 export function initNarrative(s){
  if(!s.story){s.story={messages:[],seq:0,coaching:s.phase===0,seen:[],hint:{},briefed:s.phase};push(s,'iris',brief[s.phase===7?6:s.phase]);if(s.phase>=2)push(s,'mara',s.phase===7?'Merci pour ce que tu as fait.':'Je suis sur le canal. Tu peux me parler si tu as des questions.');}
+ relationship(s,'iris');if(s.phase>=2)relationship(s,'mara');
  if(!s.battle)s.battle={state:s.phase>=5?'complete':s.phase===4?'pending':'locked',attempt:0,wave:0,integrity:100,threats:[],deadline:0,mode:'turn',last:''};
  return s;
 }
@@ -21,6 +22,7 @@ function push(s,contact,body,author=contact){
 }
 export function onAdvance(s,old){
  initNarrative(s);if(s.phase<=old||s.phase>6)return;
+ noteProgress(s);
  const contact=[2,4,6].includes(s.phase)?'mara':'iris';
  push(s,contact,brief[s.phase]);s.story.briefed=s.phase;
  if(s.phase===4&&s.battle.state==='locked'){s.battle.state='pending';push(s,'iris','Alerte : une activité hostile vise notre client. Je peux ouvrir un canal de défense quand tu es prêt. Tape defense status, puis man defense. Les preuves déjà récupérées restent en sécurité.');}
@@ -28,6 +30,9 @@ export function onAdvance(s,old){
 export function coach(s,line,code){
  initNarrative(s);s.story.events??=[];const once=(id,contact,body)=>{if(!s.story.events.includes(id)){s.story.events.push(id);push(s,contact,body);}};
  if(code===0){if(s.grants.spool)once('spool','iris','Le bail est actif. Garde une copie du reçu : nous pourrons toujours y revenir.');if(s.routes.includes('INNER'))once('inner','iris','Je vois la route interne. Tu n’auras plus besoin de repasser par la passerelle à chaque connexion.');if(s.proxies.length>=2)once('relays','iris','Tes relais répondent. Pense à surveiller la mémoire réellement disponible, pas seulement la capacité totale.');if(s.flags.snapshot&&s.phase>=3)once('snapshot','mara','Le snapshot est arrivé. Il y aura probablement des sessions anciennes mêlées à la mienne.');if(s.routes.includes('AUDIT'))once('audit','iris','La route d’audit répond. Garde le canal ouvert ; nous approchons des données sensibles.');}
+ // An occasional check-in driven by actual game activity, not an extra model call or wall-clock timer.
+ const rel=relationship(s,'iris');const latest=s.story.messages.filter(m=>m.contact==='iris').at(-1);
+ if(s.phase<6&&rel.trust>=55&&rel.irritation<35&&s.tick-(latest?.tick||0)>=22&&s.tick-rel.lastInitiative>=40){rel.lastInitiative=s.tick;push(s,'iris','Je travaille sur le dossier de mon côté. Si tu as besoin de prendre du recul, raconte-moi où tu en es.');}
  if(!s.story.coaching||s.phase!==0||code!==0)return;
  const command=line.trim().split(/\s+/)[0];
  const cues={
@@ -37,7 +42,7 @@ export function coach(s,line,code){
  connect:"Tu es sur une autre machine. ls, cd, cat et vim fonctionnent ici. Tes accès sont mémorisés ; connect te permet de revenir sans retaper de jeton.",
  fetch:"Le fichier est maintenant dans /vault, notre volume commun. Pas besoin de revenir au poste initial : submit accepte les preuves depuis n'importe où."
  };
- if(cues[command]&&!s.story.seen.includes(command)){s.story.seen.push(command);push(s,'iris',cues[command]);}
+ if(cues[command]&&!s.story.seen.includes(command)){s.story.seen.push(command);push(s,'iris',cues[command],'system');}
 }
 export function beginRoleplay(s,contact,body){
  initNarrative(s);contact=normalize(String(contact));body=String(body).trim();
@@ -47,10 +52,19 @@ export function beginRoleplay(s,contact,body){
 }
 export function finishRoleplay(s,context,result){
  initNarrative(s);
- const reply=s.phase!==context.phase?context.contact==='iris'?"Les choses ont changé depuis ton message. On en reparle avec les dernières informations.":"J'ai reçu du nouveau depuis. On peut reprendre cette discussion.":result.reply;
+ if(s.phase!==context.phase)return '';
+ if(result.source==='offline')return '';
+ applyRelationship(s,context.contact,result.effect||'neutral');
+ if(!result.reply)return '';
+ let reply=result.reply;
+ if(context.contact==='iris'&&result.attachment==='reference'){
+  // An allowlisted, immutable document; no model-generated file or path.
+  s.vault[referenceDocument.path]=referenceDocument.body;
+  reply+='\n[Note transmise : '+referenceDocument.path+']';
+ }
  push(s,context.contact,reply);return names[context.contact]+' : '+reply;
 }
-export function dialogue(s,contact,body){const c=beginRoleplay(s,contact,body);return finishRoleplay(s,c,{reply:characterFallback(c.contact,rejectInput(c.body)||'offline')});}
+export function dialogue(s,contact,body){const c=beginRoleplay(s,contact,body);return finishRoleplay(s,c,{reply:null,source:'offline'});}
 export function storyView(s){initNarrative(s);return {messages:s.story.messages,contacts:s.phase>=2?['iris','mara']:['iris'],coaching:s.story.coaching,battle:battleView(s)};}
 export function readDialogue(s,contact){initNarrative(s);return s.story.messages.filter(m=>!contact||m.contact===contact).slice(-15).map(m=>(m.author==='operator'?'Vous':names[m.author]||m.author)+' : '+m.body).join('\n\n')||'Aucun message.';}
 const waveData=[
