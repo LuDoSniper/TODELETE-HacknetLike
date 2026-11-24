@@ -1,7 +1,9 @@
 # Game 3 — Installation sans spoiler
 
-Node.js 22+ recommandé. `npm install`, `npm run setup`, `npm run dev`, puis http://localhost:5173.
+Node.js 22+ recommandé. `npm install`, `npm run setup`, `npm run dev`, puis http://localhost:5173. `npm run dev:watch` surveille uniquement le serveur pour les développeurs.
 
-Tout le gameplay se contrôle au terminal. Commencez par `mail`, `help`, `man network`, `man services`, `man vault`. `sound` active l'ambiance, `map` masque/affiche l'inspecteur, `map full` agrandit la topologie, `map reset` la recentre, `reset --confirm` recommence. Les sauvegardes sont indépendantes des jeux précédents.
+La messagerie est intégrée au poste de travail. Tu peux aussi utiliser `chat`, `talk iris "ton message"`, `chat open` et `tutorial off`. Les dialogues sont contextuels et scénarisés, sans modèle de langage externe. Le gameplay reste au terminal. `help` et `man shell` donnent les commandes.
 
-`npm test` teste les commandes et la campagne. `npm run build` puis `npm start` pour la version compilée. Tout le réseau et tous les services sont simulés.
+Déplace les nœuds de la topologie à la souris : les positions sont conservées localement par sauvegarde. `map full` agrandit la carte, `map reset` la recentre et `map layout` restaure la disposition. `sound` active l'ambiance. `reset --confirm` recommence.
+
+Les sauvegardes game-3 existantes sont conservées. `npm test` vérifie le moteur ; `npm run build` puis `npm start` pour la version compilée. Tout le réseau, les services et les incidents sont simulés.
