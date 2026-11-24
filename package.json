@@ -1,14 +1,14 @@
 {
-  "name": "nocturne",
-  "version": "1.0.0",
+  "name": "abysse",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"tsx watch server/index.ts\" \"vite\"",
+    "dev": "concurrently -k \"node --watch server/abysse/server.mjs\" \"vite\"",
     "setup": "prisma generate && prisma db push",
     "build": "vite build",
-    "start": "tsx server/index.ts",
-    "test": "vitest run"
+    "start": "node server/abysse/server.mjs",
+    "test": "node --test server/abysse/engine.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
@@ -20,19 +20,13 @@
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0",
     "vis-network": "^9.1.9",
-    "vis-data": "^7.1.9",
-    "zustand": "^5.0.0",
-    "howler": "^2.2.4",
-    "tsx": "^4.19.0"
+    "vis-data": "^7.1.9"
   },
   "devDependencies": {
     "vite": "^6.1.0",
     "typescript": "^5.7.0",
     "prisma": "^6.19.0",
     "concurrently": "^9.1.0",
-    "vitest": "^3.0.0",
-    "@types/express": "^5.0.0",
-    "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0"
   }
