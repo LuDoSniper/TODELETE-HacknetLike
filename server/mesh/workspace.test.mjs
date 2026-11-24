@@ -1,0 +1,6 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {themes,initialPrefs,normalizePrefs,palette,boundRect,defaultRect,movePanel,terminalTheme} from '../../src/workspace.mjs';
+test('default terminal retains original theme',()=>{assert.deepEqual(terminalTheme(initialPrefs()),{background:'#191b20',foreground:'#d2d4db',cursor:'#d8d8e2',selectionBackground:'#454d6b'});assert.equal(Object.keys(themes).length,5);});
+test('settings recover safely and keep windows inside workspace',()=>{const p=normalizePrefs({theme:'midnight',floating:{map:{x:90,y:90,w:80,h:80}},custom:{accent:'#123456',base:'bad'},hidden:['terminal','map'],order:['map']});assert.deepEqual(p.floating.map,{x:20,y:20,w:80,h:80});assert.deepEqual(p.hidden,['map']);assert.equal(palette(p).accent,'#123456');assert.equal(palette(p).base,themes.midnight.base);assert.equal(p.order[0],'map');assert.equal(p.order.length,4);assert.deepEqual(normalizePrefs(JSON.parse(JSON.stringify(p))),p);});
+test('docking and custom terminal opacity',()=>{const p=normalizePrefs({...initialPrefs(),theme:'ember',terminalOpacity:50});assert.equal(terminalTheme(p).background,'#1b171480');assert.deepEqual(movePanel(['chat','map','resources'],'map',-1),['map','chat','resources']);for(const id of ['terminal','chat','map','resources']){const r=defaultRect(id);assert.deepEqual(boundRect(r),r);}});
