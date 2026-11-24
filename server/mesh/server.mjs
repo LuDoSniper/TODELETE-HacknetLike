@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {resolve} from 'node:path';
 import {Server} from 'socket.io';
 import {PrismaClient} from '@prisma/client';
-import {fresh,execute,view,complete,openEditor,saveEditor} from './engine.mjs';
+import {fresh,execute,view,complete,openEditor,saveEditor,sendDialogue} from './engine.mjs';
 const app=express(),http=createServer(app),io=new Server(http,{maxHttpBufferSize:65536}),db=new PrismaClient();
 const valid=id=>typeof id==='string'&&/^me3:[a-f0-9-]{36}$/.test(id);
 app.use(express.json({limit:'8kb'}));
@@ -13,6 +13,7 @@ const queues=new Map();
 const withState=(id,ack,fn)=>{const task=(queues.get(id)||Promise.resolve()).then(async()=>{const save=await db.save.findUnique({where:{id}});if(!save)return ack({error:'Session inconnue'});const s=JSON.parse(save.state);await fn(s);}).catch(()=>ack({error:'Erreur de session'}));queues.set(id,task);void task.finally(()=>{if(queues.get(id)===task)queues.delete(id);});};
 io.on('connection',socket=>{
  socket.on('command',(p,ack)=>{if(typeof ack!=='function')return;if(!valid(p?.id)||typeof p?.line!=='string'||p.line.length>500)return ack({error:'Commande invalide'});withState(p.id,ack,async s=>{const result=execute(s,p.line);await db.save.update({where:{id:p.id},data:{state:JSON.stringify(s)}});ack({...result,state:view(s)});});});
+ socket.on('dialogue',(p,ack)=>{if(typeof ack!=='function')return;if(!valid(p?.id)||typeof p.contact!=='string'||typeof p.body!=='string'||!p.body.trim()||p.body.length>500)return ack({error:'Message invalide'});withState(p.id,ack,async s=>{try{sendDialogue(s,p.contact,p.body);await db.save.update({where:{id:p.id},data:{state:JSON.stringify(s)}});ack({state:view(s)});}catch(e){ack({error:e.message});}});});
  socket.on('editor:open',(p,ack)=>{if(typeof ack!=='function'||!valid(p?.id)||typeof p?.line!=='string'||p.line.length>500)return;withState(p.id,ack,s=>{try{ack(openEditor(s,p.line));}catch(e){ack({error:e.message});}});});
  socket.on('editor:save',(p,ack)=>{if(typeof ack!=='function'||!valid(p?.id)||typeof p?.path!=='string'||typeof p?.data!=='string'||p.data.length>20000)return;withState(p.id,ack,async s=>{try{saveEditor(s,p.path,p.data);await db.save.update({where:{id:p.id},data:{state:JSON.stringify(s)}});ack({ok:true});}catch(e){ack({error:e.message});}});});
  socket.on('complete',(p,ack)=>{if(typeof ack!=='function')return;if(!valid(p?.id)||typeof p?.line!=='string'||p.line.length>500)return ack({error:'Saisie invalide'});withState(p.id,ack,s=>ack(complete(s,p.line,Math.max(0,Math.min(p.line.length,Number.isInteger(p.pos)?p.pos:p.line.length)))));});
