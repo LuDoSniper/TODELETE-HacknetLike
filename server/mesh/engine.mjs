@@ -175,12 +175,14 @@ const engine=(function buildEngine(world,missions){
  }
  function complete(s,line,pos=line.length){
  const c=ctx(s),before=line.slice(0,pos),start=Math.max(before.lastIndexOf(' '),before.lastIndexOf('|'),before.lastIndexOf(';'))+1,part=before.slice(start),prefix=before.slice(0,start),segment=prefix.split(/\s+(?:\|\s*|&&\s*|;\s*)|[|;]\s*/).at(-1),words=segment.trim().split(/\s+/),cmd=words[0].toLowerCase();let list=[];
- if(!segment.trim())list=[...Object.keys(all),'sound','map','reset'];
+ if(!segment.trim())list=[...Object.keys(all),'sound','map','reset','workspace','theme','popup'];
  else if(cmd==='ssh'){list=words.length===1?available(s).filter(h=>reachable(s,h)).flatMap(h=>Object.keys(h.users).map(u=>u+'@'+h.id)):[];}
  else if(['connect','scan','ping','probe'].includes(cmd))list=available(s).flatMap(h=>[h.id,h.ip]);
  else if(cmd==='svc'){const t=resolveHost(words[1]);list=words.length===1?available(s).map(h=>h.id):words.length===2&&t?Object.keys(t.ports):words.length===3?['help',...(({4080:['read'],4200:['status'],4201:['index'],4101:['list','describe','revision'],4102:['log','ticket','lease'],4103:['status'],4300:['status','policy','permit'],4301:['status'],4401:['list','meta','slice'],4402:['list','read','diff'],4403:['log'],4500:['status'],4501:['status'],4502:['status'],4503:['status','window','maintenance'],4600:['status','permit'],4601:['query','schema'],4602:['list'],4603:['status'],4700:['index','read','preview'],4701:['list','inspect','compare'],4702:['list','delegate'],4800:['status']})[words[2]]||[])]:[];}
  else if(cmd==='exit')list=['all'];
  else if(cmd==='map')list=['full','reset','layout'];
+ else if(cmd==='theme')list=['graphite','aubergine','phosphor','midnight','ember'];
+ else if(cmd==='popup')list=['terminal','map','chat','resources','defense'];
  else if(cmd==='help'||cmd==='man')list=[...Object.keys(all),...Object.keys(manuals)];
  else if(cmd==='proxy')list=words.length===1?['list','add','remove']:available(s).filter(h=>h.proxy).map(h=>h.id);
  else if(cmd==='jobs')list=words.length===1?['status','start','collect','stop']:words[1]==='start'?(words.length===2?['snapshot','capture','fork']:available(s).map(h=>h.id)):activeJobs(s).map(j=>String(j.id));
