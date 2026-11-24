@@ -8,7 +8,7 @@
     "setup": "prisma generate && prisma db push",
     "build": "vite build",
     "start": "node server/mesh/launch.mjs start",
-    "test": "node --test server/mesh/*.test.mjs server/abysse/vim.test.mjs",
+    "test": "node --test server/mesh/*.test.mjs server/abysse/vim.test.mjs src/map-colors.test.mjs",
     "dev:watch": "node server/mesh/launch.mjs watch"
   },
   "dependencies": {
