@@ -1,0 +1,12 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "sqlite"
+  url = "file:./game.db"
+}
+model Save {
+  id String @id
+  state String
+  updatedAt DateTime @updatedAt
+}
