@@ -35,7 +35,9 @@ export function onAdvance(s,old){
  if(s.phase===4&&s.battle.state==='locked'){s.battle.state='pending';push(s,'iris','Alerte : une activité hostile vise notre client. Je peux ouvrir un canal de défense quand tu es prêt. Tape defense status, puis man defense. Les preuves déjà récupérées restent en sécurité.');}
 }
 export function coach(s,line,code){
- initNarrative(s);if(!s.story.coaching||s.phase!==0||code!==0)return;
+ initNarrative(s);s.story.events??=[];const once=(id,contact,body)=>{if(!s.story.events.includes(id)){s.story.events.push(id);push(s,contact,body);}};
+ if(code===0){if(s.grants.spool)once('spool','iris','Le bail est actif. Garde une copie du reçu : nous pourrons toujours y revenir.');if(s.routes.includes('INNER'))once('inner','iris','Je vois la route interne. Tu n’auras plus besoin de repasser par la passerelle à chaque connexion.');if(s.proxies.length>=2)once('relays','iris','Tes relais répondent. Pense à surveiller la mémoire réellement disponible, pas seulement la capacité totale.');if(s.flags.snapshot&&s.phase>=3)once('snapshot','mara','Le snapshot est arrivé. Il y aura probablement des sessions anciennes mêlées à la mienne.');if(s.routes.includes('AUDIT'))once('audit','iris','La route d’audit répond. Garde le canal ouvert ; nous approchons des données sensibles.');}
+ if(!s.story.coaching||s.phase!==0||code!==0)return;
  const command=line.trim().split(/\s+/)[0];
  const cues={
  scan:"Bien. Les hôtes découverts apparaissent sur ta carte. Tu peux déplacer les nœuds comme tu veux. Essaie probe sur l'un des hôtes connus pour voir ses ports.",
@@ -74,7 +76,7 @@ function generate(b){
  const a=String(210+n),c=String(270+n),d=String(330+n);
  const labels=i===0?['worker sync','worker mirror','worker cache']:i===1?['route relay','route switch','route backup']:['session desk','session relay','session rescue'];
  const bad=(b.attempt+i)%3;
- b.threats=[a,c,d].map((id,k)=>({id,label:labels[k],signature:k===bad?'INVALID':'VALID',origin:k===bad?'unknown':k===0?'desk':'trusted relay'}));
+ b.threats=[a,c,d].map((id,k)=>{const baseline=((Number(id)*7919+17)%65536).toString(16).padStart(4,'0').toUpperCase();const observed=k===bad?((Number(id)*7919+31)%65536).toString(16).padStart(4,'0').toUpperCase():baseline;return {id,label:labels[k],signature:k===bad?'INVALID':'VALID',baseline,observed,origin:k===0?'desk':'relay'};});
  b.deadline=b.mode==='live'?Date.now()+90000:0;b.last=waveData[i].note;
 }
 function loss(s,note){const b=s.battle;b.state='failed';b.deadline=0;b.last=note;push(s,'iris','Le canal a été interrompu, mais tes preuves sont intactes. Réessaie quand tu veux avec defense engage.');return note+'\nCanal isolé. defense engage pour reprendre.';}
@@ -82,15 +84,16 @@ function battleView(s){const b=s.battle;return {state:b.state,integrity:b.integr
 export function defense(s,args){
  initNarrative(s);const b=s.battle,op=args[0]||'status';
  if(b.state==='active'&&b.deadline&&Date.now()>b.deadline)loss(s,'Fenêtre de réaction expirée.');
- if(op==='status')return b.state==='locked'?'Aucun incident actif.':b.state==='pending'?'Alerte en attente. defense engage [live] pour ouvrir le canal de défense.':b.state==='complete'?'Canal sécurisé.':b.state==='failed'?'Canal isolé. defense engage pour recommencer.':'Canal sous pression / intégrité '+b.integrity+'%\n'+b.last+'\nUtilise defense inspect.';
+ if(op==='status')return b.state==='locked'?'Aucun incident actif.':b.state==='pending'?'Alerte en attente. defense engage [live] pour ouvrir le canal de défense.':b.state==='complete'?'Canal sécurisé.':b.state==='failed'?'Canal isolé. defense engage pour recommencer.':'Canal sous pression / intégrité '+b.integrity+'%\n'+b.last+'\nUtilise defense inspect et defense verify.';
  if(op==='engage'){
   if(!['pending','failed'].includes(b.state))throw Error('Aucun incident à engager.');
   if(args[1]&&args[1]!=='live')throw Error('usage: defense engage [live]');
-  b.state='active';b.attempt++;b.wave=0;b.integrity=100;b.mode=args[1]==='live'?'live':'turn';generate(b);push(s,'iris','Je suis sur le canal de secours. Identifie les anomalies avant de les isoler.');return 'CANAL DE DEFENSE OUVERT\n'+b.last;
+  b.state='active';b.attempt++;b.wave=0;b.integrity=100;b.mode=args[1]==='live'?'live':'turn';generate(b);push(s,'iris','Je suis sur le canal de secours. Compare les signatures observées à la référence de confiance avant d’isoler une ressource.');return 'CANAL DE DEFENSE OUVERT\n'+b.last;
  }
  if(op==='abort'&&b.state==='active')return loss(s,'Canal interrompu volontairement.');
  if(b.state!=='active')throw Error('Aucun incident actif. defense status');
- if(op==='inspect')return 'TYPE '+waveData[b.wave].kind.toUpperCase()+'\nID     RESOURCE                ORIGIN          SIGNATURE\n'+b.threats.map(t=>t.id.padEnd(7)+t.label.padEnd(24)+t.origin.padEnd(16)+t.signature).join('\n');
+ if(op==='inspect')return 'TYPE '+waveData[b.wave].kind.toUpperCase()+'\nID     RESOURCE                ORIGIN          SIGNATURE\n'+b.threats.map(t=>t.id.padEnd(7)+t.label.padEnd(24)+t.origin.padEnd(16)+(t.observed||t.signature)).join('\n');
+ if(op==='verify')return 'Référence des signatures autorisées\nID     RESOURCE                EXPECTED\n'+b.threats.map(t=>t.id.padEnd(7)+t.label.padEnd(24)+(t.baseline||'VALID')).join('\n');
  if(op==='wait'){b.integrity=Math.max(0,b.integrity-20);if(!b.integrity)return loss(s,'Intégrité épuisée.');return 'L’adversaire maintient la pression. Intégrité '+b.integrity+'%.';}
  const wanted=['isolate','quarantine','revoke'][b.wave];
  if(!['isolate','quarantine','revoke'].includes(op))throw Error('Commande inconnue. man defense');
