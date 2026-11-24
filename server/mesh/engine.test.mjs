@@ -6,7 +6,7 @@ test('network gates, case-insensitive completion, shared storage and cached sess
  const s=fresh();assert.equal(complete(s,'cat re').line,'cat README.md ');assert.equal(execute(s,'connect catalog').code,1);
  run(s,'scan','scan lobby','scan relay','scan catalog');assert.equal(execute(s,'connect spool').code,1);
  run(s,'svc dispatch 4102 lease KITE-41 FJ-62','connect spool','fetch /srv/spool/KITE-41.txt','echo test > /vault/Example.txt','cd /srv/spool','connect lobby','cat /vault/Example.txt','connect spool');
- assert.equal(view(s).cwd,'/srv/spool');assert.equal(complete(s,'cat /vault/ex').line,'cat /vault/Example.txt ');
+ assert.equal(view(s).cwd,'/srv/spool');assert.equal(complete(s,'cat /vault/ex').line,'cat /vault/Example.txt ');assert.equal(complete(s,'cat /VAULT/ex').line,'cat /vault/Example.txt ');assert.ok(execute(s,'sessions').out.includes('spool'));
  const f=openEditor(s,'vim /vault/Example.txt');saveEditor(s,f.path,'edited');run(s,'connect desk');assert.equal(execute(s,'cat /vault/Example.txt').out,'edited');
  assert.equal(execute(s,'connect switch').code,1);assert.ok(execute(s,'probe spool').out.includes('22/tcp'));
 });

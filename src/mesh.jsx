@@ -17,7 +17,7 @@ function sound(){if(audio){if(audio.state==='running'){void audio.suspend();retu
 function chime(){if(audio?.state!=='running')return;const o=audio.createOscillator(),g=audio.createGain();o.frequency.setValueAtTime(820,audio.currentTime);o.frequency.exponentialRampToValueAtTime(410,audio.currentTime+.35);g.gain.setValueAtTime(.05,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.5);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.5);}
 const clean=s=>String(s).replace(/[\x00-\x08\x0b-\x1f\x7f]/g,'');
 function App(){
- const [state,setState]=useState(null),[online,setOnline]=useState(false),[audible,setAudible]=useState(false),[clock,setClock]=useState(new Date()),[mapVisible,setMapVisible]=useState(true);
+ const [state,setState]=useState(null),[online,setOnline]=useState(false),[audible,setAudible]=useState(false),[clock,setClock]=useState(new Date()),[mapVisible,setMapVisible]=useState(true),[mapFull,setMapFull]=useState(false);
  const termEl=useRef(null),mapEl=useRef(null),net=useRef(null),nodeData=useRef(new DataSet()),edgeData=useRef(new DataSet()),termRef=useRef(null),current=useRef(null);
  useEffect(()=>{const id=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(id);},[]);
  useEffect(()=>{
@@ -68,10 +68,12 @@ function App(){
    if(/^(vim|vi|nano|less)\s+/.test(line)&&!/[|;&>]/.test(line)){openEditor(line);return;}
    if(line==='clear'){t.clear();t.write(esc+'2J'+esc+'H');done();return;}
    if(line==='sound'){const active=sound();setAudible(active);print('Ambiance '+(active?'activée':'désactivée'));done();return;}
-   if(line==='map'){setMapVisible(v=>!v);done();return;}
+   if(line==='map'){setMapFull(false);setMapVisible(v=>!v);done();return;}
+   if(line==='map full'){setMapVisible(true);setMapFull(v=>!v);done();return;}
+   if(line==='map reset'){net.current?.fit({animation:false});done();return;}
    if(line==='reset'){print('Pour recommencer : reset --confirm');done();return;}
    if(line==='reset --confirm'){localStorage.removeItem('mesh-save-v3');location.reload();return;}
-   if(line==='help'){print('COMMANDES DE CONSOLE\n  sound        ambiance sonore\n  map          afficher/masquer la carte\n  reset        nouvelle partie\n');}
+   if(line==='help'){print('COMMANDES DE CONSOLE\n  sound        ambiance sonore\n  map          afficher/masquer la carte\n  map full     agrandir/reduire la carte\n  map reset    recentrer la carte\n  reset        nouvelle partie\n');}
    busy=true;socket.timeout(8000).emit('command',{id,line},(err,r)=>{if(disposed)return;if(err||r?.error){t.writeln(colors.red+(r?.error||'Connexion interrompue. Réessayez.')+colors.reset);done();return;}
     const old=current.current?.phase||0;if(r.out)t.writeln((r.code?colors.red:'')+clean(r.out)+colors.reset);set(r.state);
     if(r.state.phase>old){chime();t.writeln(colors.amber+'\n[ NOUVELLE TRANSMISSION / '+(r.state.ending?'MISSION TERMINEE':'mail '+(r.state.phase+1))+' ]'+colors.reset);}
@@ -118,7 +120,8 @@ function App(){
  const memory=state?.ram||{used:0,total:8,hosts:[]};
  const hosts=state?.nodes||[];
  const phase=Math.min((state?.phase||0)+1,state?.total||7);
- return <main className={'layout '+(!mapVisible?'nomap':'')}>
+ useEffect(()=>{if(mapVisible)net.current?.fit({animation:false});},[mapVisible,mapFull]);
+ return <main className={'layout '+(!mapVisible?'nomap':mapFull?'mapfull':'')}>
   <header className="appbar">
    <div className="brand"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h5v14H3zM10 5h4v9h-4zM16 5h5v14h-5z" fill="currentColor"/></svg><b>mesh</b><span className="version">3.8</span></div>
    <div className="crumb"><span>Workspace</span><span className="slash">/</span><b>{state?.at||'desk'}</b></div>
