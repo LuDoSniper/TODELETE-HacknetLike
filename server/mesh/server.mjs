@@ -16,12 +16,22 @@ const withState=(id,ack,fn)=>{const task=(queues.get(id)||Promise.resolve()).the
 const pendingDialogue=new Set();
 async function respondDialogue(id,contact,body,ack,terminal=false){
  if(pendingDialogue.has(id))return ack({error:'Une réponse est déjà en cours.'});
- pendingDialogue.add(id);let context;
+ pendingDialogue.add(id);let context;const requestId=randomUUID().slice(0,8);
+ const verbose=process.env.MESH_NPC_DEBUG==='1';
+ const diagnostic=event=>{const {reply,...safe}=event;console.log('[npc] '+JSON.stringify({requestId,contact:context?.contact||contact,...safe,...(verbose&&typeof reply==='string'?{reply}:{})}));};
  try{
   await withState(id,ack,async state=>{const candidate=beginRoleplay(state,contact,body);await db.save.update({where:{id},data:{state:JSON.stringify(state)}});context=candidate;});
   if(!context)return;
-  const result=await generateCharacterReply(context);
-  await withState(id,ack,async state=>{const out=finishRoleplay(state,context,result);await db.save.update({where:{id},data:{state:JSON.stringify(state)}});ack({state:view(state),source:result.source,...(terminal?{out:result.source==='offline'?'Canal local indisponible — vérifie Ollama.':out,code:result.source==='offline'?1:0}:{})});});
+  diagnostic({stage:'received',length:context.body.length,...(verbose?{message:context.body}:{})});
+  const result=await generateCharacterReply(context,{diagnostic});
+  await withState(id,ack,async state=>{
+   const stale=state.phase!==context.phase;
+   const out=finishRoleplay(state,context,result);
+   const source=stale?'delivery_error':result.source;
+   if(stale)diagnostic({stage:'delivery',reason:'phase_changed'});
+   await db.save.update({where:{id},data:{state:JSON.stringify(state)}});
+   ack({state:view(state),source,...(terminal?{out:source==='offline'?'Canal local indisponible — vérifie Ollama.':source==='delivery_error'?'Message reçu, mais réponse non délivrée. Consulte les logs [npc].':out,code:['offline','delivery_error'].includes(source)?1:0}:{})});
+  });
  }finally{pendingDialogue.delete(id);}
 }
 io.on('connection',socket=>{
