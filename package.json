@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"node server/mesh/server.mjs\" \"vite\"",
+    "dev": "node server/mesh/launch.mjs dev",
     "setup": "prisma generate && prisma db push",
     "build": "vite build",
-    "start": "node server/mesh/server.mjs",
+    "start": "node server/mesh/launch.mjs start",
     "test": "node --test server/mesh/*.test.mjs server/abysse/vim.test.mjs",
-    "dev:watch": "concurrently -k \"node --watch-path=server/mesh server/mesh/server.mjs\" \"vite\""
+    "dev:watch": "node server/mesh/launch.mjs watch"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
