@@ -9,7 +9,7 @@ export const world=[
     ],
     "ports": {},
     "files": {
-      "/home/operator/README.md": "SYSTEME / Contrat de permanence\n\nmail : briefings\nscan : découverte réseau\nprobe <hôte> : ports et état des services\nman network : transport et sessions\nman services : interroger les protocoles fictifs\nman vault : espace partagé et validation\nToutes les machines et tous les services sont simulés.",
+      "/home/operator/README.md": "SYSTEME / Contrat de permanence\n\nmail : briefings\nscan : découverte réseau\nprobe <hôte> : ports et état des services\nman network : transport et sessions\nman services : interroger les protocoles fictifs\nman vault : espace partagé et validation\nToutes les machines et tous les services sont simulés.\nman svc et man connect : un service accessible ne signifie pas que son shell est autorisé. svc <hôte> <port> docs donne les documents publics.",
       "/home/operator/notes.md": "# Notes personnelles\n",
       "/etc/motd": "Poste indépendant / accès opérateur",
       "/etc/hostname": "desk",
@@ -139,14 +139,15 @@ export const world=[
       "/var/log/catalog.log": "03:15 KITE-41 revision 3 redacted",
       "/etc/hostname": "catalog",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "registry 4101/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.0.50",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "dispatch",
@@ -169,14 +170,15 @@ export const world=[
       "/var/log/events.log": "03:11 KITE-18 CLOSE exercise\n03:12 KITE-22 CLOSE delivery\n03:13 KITE-41 OPEN override\n03:14 KITE-41 HOLD nonce=FJ-62\n03:16 KITE-41 REDACT revision=3",
       "/etc/hostname": "dispatch",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "dispatch 4102/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.0.60",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "spool",
@@ -233,14 +235,15 @@ export const world=[
       "/var/log/routes.log": "03:17 INTERNAL blocked / no custody permit",
       "/etc/hostname": "gate",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "meshgate 4300/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.0.80",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "switch",
@@ -263,15 +266,16 @@ export const world=[
       "/srv/docs/switch.txt": "Relais interne. proxy add switch fournit 6 MiB pour les tâches virtuelles.",
       "/etc/hostname": "switch",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "mesh 4301/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ram": 6,
     "proxy": true,
-    "ip": "10.73.1.10"
+    "ip": "10.73.1.10",
+    "protected": true
   },
   {
     "id": "codec",
@@ -294,14 +298,15 @@ export const world=[
       "/srv/index.csv": "id,batch,part,encoding\nA17,C17,0,base64\nA19,C19,0,base64",
       "/etc/hostname": "codec",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "chunks 4401/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.1.20",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "archive",
@@ -328,14 +333,15 @@ export const world=[
       "/srv/revisions/r19.txt": "C19|1|DUSK",
       "/etc/hostname": "archive",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "revision 4402/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.1.30",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "journal",
@@ -359,14 +365,16 @@ export const world=[
       "/srv/export/old.part": "C16|2|WEST",
       "/etc/hostname": "journal",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
-      "/etc/services": "events 4403/tcp"
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nreader:x:1000:1000:Operator:/home/reader:/bin/mesh",
+      "/etc/services": "events 4403/tcp",
+      "/srv/docs/events.txt": "Le service events expose le journal public des exports. access <lot> accorde un compte lecteur lorsque le lot a été confirmé par le journal. Le compte permet de récupérer les fichiers exportés."
     },
     "users": {
-      "guest": ""
+      "reader": ""
     },
     "ip": "10.73.1.40",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "workbench",
@@ -389,15 +397,16 @@ export const world=[
       "/var/log/scheduler.log": "03:58 snapshot requested / local memory insufficient",
       "/etc/hostname": "workbench",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "scheduler 4500/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ram": 6,
     "proxy": true,
-    "ip": "10.73.1.50"
+    "ip": "10.73.1.50",
+    "protected": true
   },
   {
     "id": "notary",
@@ -419,14 +428,15 @@ export const world=[
       "/srv/docs/manifest.txt": "Le format du manifeste est LOT|partie0|partie1|partie2. Les parties sont au format LOT|index|valeur. assemble <3 fichiers> [sortie] reconstruit le manifeste. Les fragments doivent être du même lot.",
       "/etc/hostname": "notary",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "notary 4501/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.1.60",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "compute",
@@ -449,14 +459,15 @@ export const world=[
       "/var/log/runtime.log": "04:02 diagnostic C17 active session M-42\n04:03 stale M-31 discarded",
       "/etc/hostname": "compute",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "memory 4502/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.1.70",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "sentinel",
@@ -475,18 +486,19 @@ export const world=[
       }
     },
     "files": {
-      "/srv/docs/monitor.txt": "La surveillance bloque les snapshots pendant la période d’observation. Une fenêtre de maintenance peut être ouverte par un bail valide ; une ancienne révision du journal mentionne le dernier bail de test. Une saturation temporaire des workers déclenche également le mode diagnostic de secours. trace wait réduit le signal.",
+      "/srv/docs/monitor.txt": "La surveillance bloque les snapshots pendant la période d’observation. Une fenêtre de maintenance peut être ouverte par un bail valide ; une ancienne révision du journal mentionne le dernier bail de test. Une saturation temporaire des workers déclenche également le mode diagnostic de secours. trace wait réduit le signal.\nLe service monitor propose log pour consulter le journal de surveillance sans ouvrir de shell.",
       "/var/log/monitor.log": "04:01 monitor active\n04:02 MAINTENANCE lease=OBS-14 window=8 state=expired\n04:03 MAINTENANCE lease=OBS-17 window=8 state=valid\n04:04 snapshot blocked: monitor owns guard",
       "/etc/hostname": "sentinel",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "monitor 4503/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.1.80",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "uplink",
@@ -509,14 +521,15 @@ export const world=[
       "/var/log/uplink.log": "04:04 AUDIT blocked / active session required",
       "/etc/hostname": "uplink",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "uplink 4600/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.1.90",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "audit",
@@ -539,14 +552,15 @@ export const world=[
       "/srv/log/audit.csv": "local,source,tx,action\n09:14,alpha,T-77,REQUEST\n09:20,beta,T-77,APPROVE\n09:21,beta,T-80,DENY\n09:15,alpha,T-81,TEST\n09:18,alpha,T-77,COMMIT",
       "/etc/hostname": "audit",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "audit 4601/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.2.10",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "keyring",
@@ -570,14 +584,15 @@ export const world=[
       "/srv/docs/identity.txt": "Une transaction active doit être corrélée à sa session. Ne pas confondre les événements de test et les refus.",
       "/etc/hostname": "keyring",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "tokens 4602/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.2.20",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "clock",
@@ -599,14 +614,15 @@ export const world=[
       "/srv/docs/time.txt": "minutes_to_utc est à ajouter à l’heure locale. reconstruct <journal> <offsets> <transaction> [sortie] normalise et trie les événements de cette transaction.",
       "/etc/hostname": "clock",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "time 4603/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.2.30",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "records",
@@ -664,14 +680,15 @@ export const world=[
       "/srv/review/R17.txt": "R17|T-77|auditor|MANDAT-9",
       "/etc/hostname": "review",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "review 4701/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.2.50",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "registry",
@@ -693,14 +710,15 @@ export const world=[
       "/var/log/acl.log": "04:18 records auditor revoked via stale sync\n04:19 R17 approved / delegation permitted",
       "/etc/hostname": "registry",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\noperator:x:1000:1000:Operator:/home/operator:/bin/mesh",
       "/etc/services": "grants 4702/tcp"
     },
     "users": {
-      "guest": ""
+      "operator": ""
     },
     "ip": "10.73.2.60",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   },
   {
     "id": "press",
@@ -718,18 +736,19 @@ export const world=[
       }
     },
     "files": {
-      "/srv/docs/publish.txt": "Les pièces validées sont conservées dans le coffre de l’opérateur. La diffusion finale distingue le dépôt sous scellés et la publication anonymisée.",
+      "/srv/docs/publish.txt": "Les pièces validées sont conservées dans le coffre de l’opérateur. La diffusion finale distingue le dépôt sous scellés et la publication anonymisée.\naccess demande un compte publisher. Il n’est accordé que lorsque toutes les pièces du dossier ont été validées. Le service consent affiche le message de la personne concernée.",
       "/srv/messages/consent.txt": "MARA : Je souhaite que l’ordre soit public, mais je refuse la publication de mes données personnelles. Le rapport anonymisé est suffisant.",
       "/etc/hostname": "press",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
-      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
+      "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\npublisher:x:1000:1000:Operator:/home/publisher:/bin/mesh",
       "/etc/services": "publish 4800/tcp"
     },
     "users": {
-      "guest": ""
+      "publisher": ""
     },
     "ip": "10.73.2.70",
-    "ram": 0
+    "ram": 0,
+    "protected": true
   }
 ];
 export const missions=[
@@ -751,7 +770,7 @@ export const missions=[
     "title": "Un export incomplet",
     "from": "Mara / canal sécurisé",
     "subject": "Trois fragments",
-    "body": "Un export a été fractionné avant sa suppression. Les journaux internes indiquent le bon lot, les services codec et archive permettent de récupérer les morceaux. Recompose les fichiers avec le shell, puis assemble <3 fichiers> [sortie]. Utilise /vault pour partager tes fichiers entre les machines. Soumets le manifeste.",
+    "body": "Un export a été fractionné avant sa suppression. Les journaux internes indiquent le bon lot, les services codec et archive permettent de récupérer les morceaux. Recompose les fichiers avec le shell, puis assemble <3 fichiers> [sortie]. Utilise /vault pour partager tes fichiers entre les machines. Soumets le manifeste. Le service events permet de demander un accès lecteur à un lot confirmé. Consulte son manuel réseau.",
     "needed": "manifeste reconstruit"
   },
   {
@@ -779,7 +798,7 @@ export const missions=[
     "title": "Publication",
     "from": "Mara / canal sécurisé",
     "subject": "Notre histoire, notre choix",
-    "body": "Nous avons validé le dossier ensemble. Je souhaite que l'ordre soit rendu public sans mes données personnelles. Lis /srv/messages/consent.txt sur press si tu veux. Tu peux choisir publish public ou publish sealed depuis press. L'option publique anonymise les pièces. La décision finale reste à toi.",
+    "body": "Nous avons validé le dossier ensemble. Je souhaite que l'ordre soit rendu public sans mes données personnelles. Le service de publication peut délivrer un accès après validation du dossier ; consulte ses actions et le message de consentement. Tu peux choisir publish public ou publish sealed depuis press. L'option publique anonymise les pièces. La décision finale reste à toi.",
     "needed": "diffusion finale"
   }
 ];
