@@ -19,7 +19,7 @@ function sound(){if(audio){if(audio.state==='running'){void audio.suspend();retu
 function chime(){if(audio?.state!=='running')return;const o=audio.createOscillator(),g=audio.createGain();o.frequency.setValueAtTime(820,audio.currentTime);o.frequency.exponentialRampToValueAtTime(410,audio.currentTime+.35);g.gain.setValueAtTime(.05,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.5);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.5);}
 const clean=s=>String(s).replace(/[\x00-\x08\x0b-\x1f\x7f]/g,'');
 function App(){
- const [state,setState]=useState(null),[online,setOnline]=useState(false),[audible,setAudible]=useState(false),[clock,setClock]=useState(new Date()),[mapVisible,setMapVisible]=useState(true),[mapFull,setMapFull]=useState(false),[chatOpen,setChatOpen]=useState(true),[contact,setContact]=useState('iris'),[message,setMessage]=useState(''),[chatBusy,setChatBusy]=useState(false),[chatError,setChatError]=useState(''),[prefs,setPrefs]=useState(loadPrefs),[settings,setSettings]=useState(false),[front,setFront]=useState('');
+ const [state,setState]=useState(null),[online,setOnline]=useState(false),[audible,setAudible]=useState(false),[clock,setClock]=useState(new Date()),[mapVisible,setMapVisible]=useState(true),[mapFull,setMapFull]=useState(false),[chatOpen,setChatOpen]=useState(true),[contact,setContact]=useState('iris'),[message,setMessage]=useState(''),[chatBusy,setChatBusy]=useState(false),[chatError,setChatError]=useState(''),[prefs,setPrefs]=useState(loadPrefs),[settings,setSettings]=useState(false),[front,setFront]=useState(''),[prefError,setPrefError]=useState('');
  const termEl=useRef(null),mapEl=useRef(null),net=useRef(null),nodeData=useRef(new DataSet()),edgeData=useRef(new DataSet()),termRef=useRef(null),current=useRef(null),sendChatRef=useRef(null),chatScroll=useRef(null),positions=useRef({}),workspaceRef=useRef(null),prefsRef=useRef(prefs);
  prefsRef.current=prefs;
  const updatePrefs=fn=>setPrefs(p=>normalizePrefs(typeof fn==='function'?fn(p):fn));
@@ -30,7 +30,9 @@ function App(){
  const panelClass=(id,base)=>base+(prefs.floating[id]?' floating':'')+(prefs.hidden.includes(id)?' panelHidden':'')+(front===id?' front':'');
  const panelStyle=id=>{const f=prefs.floating[id];return f?{left:f.x+'%',top:f.y+'%',width:f.w+'%',height:f.h+'%'}:{order:prefs.order.indexOf(id)};};
  const windowProps=id=>({id,prefs,workspaceRef,updatePrefs,floatPanel,hidePanel,setFront});
- useEffect(()=>{const t=termRef.current;if(t)t.options.theme=terminalTheme(prefs);},[prefs.theme,prefs.custom,prefs.terminalOpacity]);
+ useEffect(()=>{const t=termRef.current;if(t)t.options.theme=terminalTheme(prefs);},[theme.terminal,theme.foreground,theme.selection,prefs.terminalOpacity,prefs.theme]);
+ useEffect(()=>{const timer=setTimeout(()=>{setPrefError(storePrefs(prefs)?'':'Stockage local saturé : les préférences ne seront pas conservées.');},180);return()=>clearTimeout(timer);},[prefs]);
+ useEffect(()=>{const save=()=>storePrefs(prefsRef.current);window.addEventListener('pagehide',save);return()=>window.removeEventListener('pagehide',save);},[]);
  useEffect(()=>{const id=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(id);},[]);
  useEffect(()=>{
   const t=new Terminal({fontFamily:'Cascadia Code, Consolas, monospace',fontSize:14,lineHeight:1.18,cursorBlink:true,cursorStyle:'block',scrollback:6000,convertEol:true,allowTransparency:true,theme:terminalTheme(prefsRef.current)});
@@ -39,7 +41,7 @@ function App(){
   const set=s=>{current.current=s;setState(s);};
   sendChatRef.current=(who,body,callback)=>{if(busy||editor||!id||!socket.connected){callback('Le terminal est occupé ou hors ligne. Termine ton opération en cours.');return;}busy=true;socket.timeout(8000).emit('dialogue',{id,contact:who,body},(err,r)=>{if(disposed)return;busy=false;if(err||r?.error){callback(r?.error||'Transmission interrompue');return;}set(r.state);callback(null);});};
   const promptPlain=()=>{const s=current.current;if(!s)return 'local $ ';const home='/home/'+s.user;const cwd=s.cwd===home?'~':s.cwd.startsWith(home+'/')?'~'+s.cwd.slice(home.length):s.cwd;return s.user+'@'+s.at+':'+cwd+'$ ';};
-  const promptStyled=()=>{const p=promptPlain(),k=p.indexOf(':');return k<0?p:colors.green+p.slice(0,k)+colors.reset+':'+colors.blue+p.slice(k+1,-2)+colors.reset+'$ ';};
+  const promptStyled=()=>{const p=promptPlain(),k=p.indexOf(':'),pref=prefsRef.current,pal=palette(pref);const rgb=hex=>esc+'38;2;'+[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)).join(';')+'m';const green=pref.theme==='graphite'&&!pref.custom.green?colors.green:rgb(pal.green),blue=pref.theme==='graphite'&&!pref.custom.blue?colors.blue:rgb(pal.blue);return k<0?p:green+p.slice(0,k)+colors.reset+':'+blue+p.slice(k+1,-2)+colors.reset+'$ ';};
   const print=s=>{if(s)t.writeln(clean(s));};
   const place=()=>{const cols=Math.max(10,t.cols),length=promptPlain().length+buffer.length,index=promptPlain().length+pos;renderedCols=cols;renderedRows=Math.floor(length/cols)+1;renderedCursorRow=Math.floor(index/cols);renderedCursorCol=index%cols;const endRow=Math.floor(length/cols);const extra=endRow-renderedCursorRow;if(extra>0)t.write(esc+extra+'A');t.write('\r');if(renderedCursorCol)t.write(esc+renderedCursorCol+'C');};
   const freshPrompt=()=>{t.write(promptStyled()+buffer);place();};
@@ -132,18 +134,19 @@ function App(){
  const mapSignature=useRef('');
  useEffect(()=>{if(!state||!net.current)return;
   const zones=['EDGE','INNER','AUDIT'],columns={};for(const z of zones)columns[z]=state.nodes.filter(n=>n.zone===z);
-  const newNodes=state.nodes.map(n=>{const i=columns[n.zone].findIndex(x=>x.id===n.id),col=zones.indexOf(n.zone);return {id:n.id,label:n.id+'\n'+n.ip,x:positions.current[n.id]?.x??col*290+(i%2)*110,y:positions.current[n.id]?.y??Math.floor(i/2)*100,physics:false,fixed:{x:false,y:false},color:{background:n.id===state.at?'#c9c7ee':n.proxy?'#82c9b0':n.access?'#65779f':n.available?'#565967':'#2b2d35',border:n.id===state.at?'#f3efff':n.proxy?'#b6ebd7':n.available?'#9da0b2':'#686a75'},size:n.id===state.at?11:8};});
+  const newNodes=state.nodes.map(n=>{const i=columns[n.zone].findIndex(x=>x.id===n.id),col=zones.indexOf(n.zone);return {id:n.id,label:n.id+'\n'+n.ip,x:positions.current[n.id]?.x??col*290+(i%2)*110,y:positions.current[n.id]?.y??Math.floor(i/2)*100,physics:false,fixed:{x:false,y:false},color:{background:n.id===state.at?theme.accent:n.proxy?theme.green:n.access?theme.blue:n.available?theme.muted:theme.line,border:n.id===state.at?theme.ink:n.proxy?theme.green:n.available?theme.muted:theme.line},size:n.id===state.at?11:8};});
   nodeData.current.update(newNodes);const edges=new Map();for(const n of state.nodes)for(const x of n.links){const id=[n.id,x].sort().join(':');edges.set(id,{id,from:n.id,to:x});}edgeData.current.update([...edges.values()]);
   const sig=state.nodes.map(n=>n.id).join(',');if(sig!==mapSignature.current){mapSignature.current=sig;net.current.fit({animation:false});}
- },[state]);
+ },[state,theme.accent,theme.green,theme.blue,theme.muted,theme.line,theme.ink]);
  useEffect(()=>{const n=net.current;if(n)n.setOptions({nodes:{font:{color:theme.ink}},edges:{color:theme.line}});},[theme.ink,theme.line]);
  const memory=state?.ram||{used:0,total:8,hosts:[]};
  const hosts=state?.nodes||[];
+ const dockVisible=(!prefs.hidden.includes('chat')&&chatOpen&&!prefs.floating.chat)||(!prefs.hidden.includes('map')&&!prefs.floating.map)||(!prefs.hidden.includes('resources')&&!prefs.floating.resources)||(['pending','active','failed'].includes(state?.story?.battle?.state)&&!prefs.floating.defense);
  const messages=(state?.story?.messages||[]).filter(m=>m.contact===contact),contacts=state?.story?.contacts||['iris'],battle=state?.story?.battle;
  const sendMessage=e=>{e.preventDefault();if(!message.trim()||chatBusy)return;setChatBusy(true);setChatError('');sendChatRef.current?.(contact,message,err=>{setChatBusy(false);if(err)setChatError(err);else setMessage('');});};
  useEffect(()=>{if(chatScroll.current)chatScroll.current.scrollTop=chatScroll.current.scrollHeight;},[state?.story?.messages,contact,chatOpen]);
  useEffect(()=>{if(mapVisible)net.current?.fit({animation:false});},[mapVisible,mapFull]);
- return <main style={vars} className={'layout '+(!mapVisible?'nomap ':'')+(prefs.side==='left'?'dockLeft ':'')+(prefs.floating.terminal?'terminalFloating ':'')+(prefs.wallpaper?'hasWallpaper':'')}>
+ return <main style={vars} className={'layout '+(!mapVisible?'nomap ':'')+(prefs.side==='left'?'dockLeft ':'')+(prefs.floating.terminal?'terminalFloating ':'')+(prefs.wallpaper?'hasWallpaper ':'')+(!dockVisible?'emptyDock':'')}>
   <header className="appbar">
    <div className="brand"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h5v14H3zM10 5h4v9h-4zM16 5h5v14h-5z" fill="currentColor"/></svg><b>mesh</b><span className="version">3.8</span></div>
    <div className="crumb"><span>Workspace</span><span className="slash">/</span><b>{state?.at||'desk'}</b></div>
@@ -163,7 +166,7 @@ function App(){
     <section className={panelClass("resources","resources")} style={panelStyle("resources")} onPointerDown={()=>setFront("resources")}><WindowControls {...windowProps("resources")} title="Resources" detail={(state?.jobs?.length||0)+" jobs"}/><div className="resourceBody"><div className="resourceRow"><span>Memory</span><b>{memory.used} <small>/ {memory.total} MiB</small></b></div><div className="meter"><i style={{width:100*memory.used/Math.max(1,memory.total)+'%'}}/></div><div className="resourceRow"><span>Observation</span><b>{state?.trace||0}<small>%</small></b></div><div className="meter trace"><i style={{width:(state?.trace||0)+'%'}}/></div>{state?.jobs?.length>0&&<div className="joblist">{state.jobs.map(j=><div key={j.id}><code>#{j.id}</code><span>{j.type} / {j.target}</span><small>{j.state}</small></div>)}</div>}</div><WindowControls {...windowProps("resources")} resize/></section>
 
    </aside>
-   {settings&&<WorkspaceSettings prefs={prefs} updatePrefs={updatePrefs} close={()=>setSettings(false)} reset={()=>{updatePrefs(p=>({...p,side:"right",sideWidth:33,order:initialPrefs().order,floating:{},hidden:[]}));setChatOpen(true);setMapVisible(true);}} showChat={()=>setChatOpen(true)}/>}
+   {settings&&<WorkspaceSettings prefError={prefError} prefs={prefs} updatePrefs={updatePrefs} close={()=>setSettings(false)} reset={()=>{updatePrefs(p=>({...p,side:"right",sideWidth:33,order:initialPrefs().order,floating:{},hidden:[]}));setChatOpen(true);setMapVisible(true);}} showChat={()=>{setChatOpen(true);setMapVisible(true);}}/>}
   </div>
   <footer><div><span className="statusDot"/>{online?'Session active':'Disconnected'}<span className="separator"/>Local simulation</div><div><span>{audible?'Audio on':'Audio off'}</span><span className="separator"/>Auto-save<span className="separator"/><span>{state?.depth||1} sessions</span></div></footer>
  </main>;
