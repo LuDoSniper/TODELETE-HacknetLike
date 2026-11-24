@@ -10,3 +10,5 @@ run(s,'ssh invite@quai','ssh invite@vigie','ssh invite@relais','ssh invite@bouee
 run(s,'ssh -J auto enqueteur@balise secours-b','transmit public');assert.equal(s.phase,6);assert.ok(s.ending);
 });
 test('editor respects virtual permissions and keeps multiline files',()=>{const s=fresh();const f=openEditor(s,'nano note.txt');assert.equal(f.readOnly,false);saveEditor(s,f.path,'alpha\nbeta');assert.equal(openEditor(s,'less note.txt').data,'alpha\nbeta');assert.equal(openEditor(s,'nano /etc/hostname').readOnly,true);});
+
+test('vim and vi open the virtual editor',()=>{const s=fresh();const f=openEditor(s,'vim notes-new.txt');assert.equal(f.mode,'vim');saveEditor(s,f.path,'hello');assert.equal(openEditor(s,'vi notes-new.txt').data,'hello');assert.equal(openEditor(s,'vim /etc/hostname').readOnly,true);});
