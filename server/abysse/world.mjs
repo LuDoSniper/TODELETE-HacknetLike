@@ -56,9 +56,12 @@ export const world = (function makeWorld(){
  H('archive','10.42.2.20','FOND',['carto','hydro','station'],{lecteur:'nautilus-81'},{
  '/etc/hostname':'archive','/srv/catalogue/index.csv':'date,id,etat,chemin\n2026-06-17,N27,VALIDE,/srv/backup/gamma.part\n2026-06-18,N28,ANNULE,/srv/backup/gamma-new.part\n2024-01-04,N24,VALIDE,/srv/backup/gamma-old.part',
  '/srv/backup/gamma.part':'N27|3|CAP-031',
+ '/etc/archive/access.conf':'viewer=lecteur\nread.restricted=N27\npreview.max=8\npreview.acl=legacy\n',
+ '/var/log/preview.log':'2026-06-17 preview N24 offset=0 len=8 OK\n2026-06-17 read N27 DENIED\n2026-06-17 preview N27 offset=8 len=8 OK\n',
+ '/srv/public/rpc-manual.txt':'Service archive : rpc inspect <id>, rpc read <id>, rpc preview <id> <offset> <length>. Les offsets sont en octets, commencent à 0 et la prévisualisation est limitée à 8 octets par requête. Le mode legacy devrait être désactivé.',
  '/srv/backup/gamma-new.part':'N28|3|CAP-091',
  '/srv/backup/gamma-old.part':'N24|3|CAP-220',
- '/srv/public/notice':'Le dossier de géolocalisation doit être assemblé sur atelier via assemble, avec trois fichiers de la campagne N27.'
+ '/srv/public/notice':'Le dossier de géolocalisation doit être assemblé sur atelier via assemble, avec trois fichiers de la campagne N27. Les permissions de lecture directe de la dernière sauvegarde ont été modifiées. Examiner le service archive et ses journaux.'
  },['shell','archive']),
  H('station','10.42.3.1','HABITAT',['archive','batterie','pompe','sas'],{technicien:'nereide-031'},{
  '/etc/hostname':'station','/etc/motd':'Habitat NEREIDE — mode secours',
@@ -88,7 +91,9 @@ export const world = (function makeWorld(){
  '/etc/hostname':'direction','/srv/directives/16.txt':'Directive 16 : test des alarmes.',
  '/srv/directives/17.txt':'DIRECTIVE-17 | ordre: isoler NEREIDE | motif: dissimulation expérience | validation: V. LENOIR',
  '/srv/directives/18.txt':'Directive 18 : mise à jour documentaire.',
- '/var/log/approval.log':'02:05 17 APPROVED VLENOIR\n02:12 18 DRAFT'
+ '/var/log/approval.log':'02:05 17 APPROVED VLENOIR\n02:12 18 DRAFT',
+ '/etc/directives/access.conf':'role=enqueteur\nread.17=deny\ncompare=allow\ncompare_acl=left_only\n',
+ '/srv/directives/README':'Service de révision : rpc read <id> et rpc diff <ancien> <nouveau>. Le comparateur hérité vérifie les droits du document de base. Chaque directive tient sur une ligne.'
  },['shell','records']),
  H('balise','10.42.4.12','ENQUETE',['dossier','direction'],{enqueteur:'secours-b'},{
  '/etc/hostname':'balise','/srv/public/evacuation.txt':'La balise de secours peut émettre une transmission signée vers le navire de secours. Les pièces jointes sont vérifiées par la permanence. Après validation, le choix de diffusion reste à l’opérateur.',
