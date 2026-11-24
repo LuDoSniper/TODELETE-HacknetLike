@@ -14,7 +14,7 @@ export function reconcileNodeColors(saved,nodes,current,theme){
 }
 export function nodeColor(node,current,theme,annotations){
  const auto=automaticNodeColor(node,current,theme),entry=annotations?.[node.id];
- if(!entry||entry.signature!==colorSignature(auto)||!/^#[0-9a-f]{6}$/i.test(entry.color))return auto;
+ if(!entry||entry.signature!==colorSignature(auto)||!/^#[0-9a-f]{6}$/i.test(entry.color))return {...auto,highlight:{background:auto.background,border:auto.border},hover:{background:auto.background,border:auto.border}};
  return {...auto,background:entry.color,highlight:{background:entry.color,border:auto.border},hover:{background:entry.color,border:auto.border}};
 }
 export function annotateNodeColor(saved,node,current,theme,color){
