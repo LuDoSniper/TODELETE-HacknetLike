@@ -385,7 +385,7 @@ export const world=[
       }
     },
     "files": {
-      "/srv/docs/scheduler.txt": "Les tâches de diagnostic utilisent 12 MiB pour un snapshot et 4 MiB pour la capture. Un snapshot réparti exige au moins deux relais. jobs start <type> <hôte>, jobs status, jobs collect <id>, jobs stop <id>.",
+      "/srv/docs/scheduler.txt": "Le snapshot de diagnostic consomme 12 MiB et exige deux relais. Une tâche capture consomme 4 MiB. Le générateur de charge fork consomme 6 MiB ; il crée uniquement des workers fictifs dans la file de surveillance. Le verrou du snapshot est levé tant que la file est saturée. Les tâches fork s’arrêtent automatiquement après 8 opérations. man jobs.",
       "/var/log/scheduler.log": "03:58 snapshot requested / local memory insufficient",
       "/etc/hostname": "workbench",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
@@ -441,11 +441,11 @@ export const world=[
       "4502": {
         "name": "memory",
         "version": "2.8",
-        "banner": "diagnostic memory image"
+        "banner": "diagnostic memory image; guard enforced by sentinel"
       }
     },
     "files": {
-      "/srv/docs/memory.txt": "Un snapshot de diagnostic ne peut être lu qu’après exécution distribuée. Le fichier contient plusieurs sessions, dont certaines ont été annulées.",
+      "/srv/docs/memory.txt": "Le snapshot exige une fenêtre de maintenance ou un mode diagnostic de secours. Interroger sentinel et examiner ses journaux. Une fois le snapshot lancé, il continue même si la fenêtre se ferme. Les anciennes sessions sont des leurres.",
       "/var/log/runtime.log": "04:02 diagnostic C17 active session M-42\n04:03 stale M-31 discarded",
       "/etc/hostname": "compute",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
@@ -471,12 +471,12 @@ export const world=[
       "4503": {
         "name": "monitor",
         "version": "2.0",
-        "banner": "trace monitor / virtual worker queue"
+        "banner": "trace monitor; actions: status, window, maintenance"
       }
     },
     "files": {
-      "/srv/docs/monitor.txt": "trace affiche la charge d’observation. Les tâches distribuées la font monter. Une période idle (trace wait) réduit le signal. Aucun échec irréversible. Les tâches en attente doivent être libérées avec jobs collect ou jobs stop.",
-      "/var/log/monitor.log": "04:01 monitor active",
+      "/srv/docs/monitor.txt": "La surveillance bloque les snapshots pendant la période d’observation. Une fenêtre de maintenance peut être ouverte par un bail valide ; une ancienne révision du journal mentionne le dernier bail de test. Une saturation temporaire des workers déclenche également le mode diagnostic de secours. trace wait réduit le signal.",
+      "/var/log/monitor.log": "04:01 monitor active\n04:02 MAINTENANCE lease=OBS-14 window=8 state=expired\n04:03 MAINTENANCE lease=OBS-17 window=8 state=valid\n04:04 snapshot blocked: monitor owns guard",
       "/etc/hostname": "sentinel",
       "/etc/os-release": "NAME=\"MESH/OS\"\nVERSION=\"3.8\"",
       "/etc/passwd": "root:x:0:0:root:/root:/bin/mesh\nguest:x:1000:1000:Operator:/home/guest:/bin/mesh",
@@ -758,7 +758,7 @@ export const missions=[
     "title": "Mémoire distribuée",
     "from": "Iris / permanence",
     "subject": "Une session encore active",
-    "body": "Il faut obtenir le snapshot de compute. Ta RAM locale ne suffit pas. Active des relais avec proxy add, puis consulte man jobs. La capture exige au moins deux relais pour préserver la redondance. Le snapshot contient une session active et des leurres. Soumets un fichier contenant uniquement SESSION|JETON pour la session active, après avoir collecté le snapshot.",
+    "body": "Il faut obtenir le snapshot de compute. Le service de surveillance le bloque en temps normal. Examine sentinel : une fenêtre de maintenance ou une saturation temporaire des workers virtuels permet de lancer le diagnostic. Il faut également suffisamment de RAM répartie sur deux relais. man jobs. Le snapshot contient une session active et des leurres. Soumets un fichier contenant uniquement SESSION|JETON pour la session active.",
     "needed": "session et jeton actifs"
   },
   {
