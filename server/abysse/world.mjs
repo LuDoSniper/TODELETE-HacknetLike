@@ -62,7 +62,7 @@ export const world = (function makeWorld(){
  '/srv/backup/gamma-new.part':'N28|3|CAP-091',
  '/srv/backup/gamma-old.part':'N24|3|CAP-220',
  '/srv/public/notice':'Le dossier de géolocalisation doit être assemblé sur atelier via assemble, avec trois fichiers de la campagne N27. Les permissions de lecture directe de la dernière sauvegarde ont été modifiées. Examiner le service archive et ses journaux.'
- },['shell','archive']),
+ },['shell','archive','rpc']),
  H('station','10.42.3.1','HABITAT',['archive','batterie','pompe','sas'],{technicien:'nereide-031'},{
  '/etc/hostname':'station','/etc/motd':'Habitat NEREIDE — mode secours',
  '/srv/maintenance/procedure.txt':'La batterie est limitée à 70 kW. Le réseau de secours et la ventilation doivent rester actifs. Le sonar est facultatif. La pompe principale exige 35 kW. La console grid est accessible depuis batterie et pompe.',
@@ -94,13 +94,26 @@ export const world = (function makeWorld(){
  '/var/log/approval.log':'02:05 17 APPROVED VLENOIR\n02:12 18 DRAFT',
  '/etc/directives/access.conf':'role=enqueteur\nread.17=deny\ncompare=allow\ncompare_acl=left_only\n',
  '/srv/directives/README':'Service de révision : rpc read <id> et rpc diff <ancien> <nouveau>. Le comparateur hérité vérifie les droits du document de base. Chaque directive tient sur une ligne.'
- },['shell','records']),
+ },['shell','records','rpc']),
  H('balise','10.42.4.12','ENQUETE',['dossier','direction'],{enqueteur:'secours-b'},{
  '/etc/hostname':'balise','/srv/public/evacuation.txt':'La balise de secours peut émettre une transmission signée vers le navire de secours. Les pièces jointes sont vérifiées par la permanence. Après validation, le choix de diffusion reste à l’opérateur.',
  '/srv/public/frequences.txt':'PRIVE : secours uniquement\nPUBLIC : secours et enquête indépendante'
  },['shell','transmission'])
  ];
 })();
+for (const h of world) {
+ const u=Object.keys(h.users)[0];
+ Object.assign(h.files,{
+ '/etc/os-release':'NAME="ABYSS/OS"\nVERSION="6.27.1"\nID=abyss',
+ '/etc/passwd':'root:x:0:0:root:/root:/bin/abyss\n'+u+':x:1000:1000:Operator:/home/'+u+':/bin/abyss',
+ '/etc/group':'root:x:0:\noperators:x:1000:'+u,
+ '/proc/version':'ABYSS/OS virtual kernel 6.27.1',
+ '/proc/uptime':'89127.11 81273.51',
+ '/var/log/auth.log':'01:00 session manager online\n01:01 authorized role '+u,
+ ['/home/'+u+'/.profile']:'export PATH=/bin:/usr/bin\nexport LANG=fr_FR.UTF-8',
+ ...h.files
+ });
+}
 export const missions = [
   {
     "title": "Permanence de nuit",
