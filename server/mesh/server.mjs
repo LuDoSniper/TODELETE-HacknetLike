@@ -18,7 +18,7 @@ async function respondDialogue(id,contact,body,ack,terminal=false){
  if(pendingDialogue.has(id))return ack({error:'Une réponse est déjà en cours.'});
  pendingDialogue.add(id);let context;
  try{
-  await withState(id,ack,async state=>{context=beginRoleplay(state,contact,body);await db.save.update({where:{id},data:{state:JSON.stringify(state)}});});
+  await withState(id,ack,async state=>{const candidate=beginRoleplay(state,contact,body);await db.save.update({where:{id},data:{state:JSON.stringify(state)}});context=candidate;});
   if(!context)return;
   const result=await generateCharacterReply(context);
   await withState(id,ack,async state=>{const out=finishRoleplay(state,context,result);await db.save.update({where:{id},data:{state:JSON.stringify(state)}});ack({state:view(state),source:result.source,...(terminal?{out,code:0}:{})});});
