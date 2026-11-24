@@ -17,14 +17,15 @@ function sound(){if(audio){if(audio.state==='running'){void audio.suspend();retu
 function chime(){if(audio?.state!=='running')return;const o=audio.createOscillator(),g=audio.createGain();o.frequency.setValueAtTime(820,audio.currentTime);o.frequency.exponentialRampToValueAtTime(410,audio.currentTime+.35);g.gain.setValueAtTime(.05,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.5);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+.5);}
 const clean=s=>String(s).replace(/[\x00-\x08\x0b-\x1f\x7f]/g,'');
 function App(){
- const [state,setState]=useState(null),[online,setOnline]=useState(false),[audible,setAudible]=useState(false),[clock,setClock]=useState(new Date()),[mapVisible,setMapVisible]=useState(true),[mapFull,setMapFull]=useState(false);
- const termEl=useRef(null),mapEl=useRef(null),net=useRef(null),nodeData=useRef(new DataSet()),edgeData=useRef(new DataSet()),termRef=useRef(null),current=useRef(null);
+ const [state,setState]=useState(null),[online,setOnline]=useState(false),[audible,setAudible]=useState(false),[clock,setClock]=useState(new Date()),[mapVisible,setMapVisible]=useState(true),[mapFull,setMapFull]=useState(false),[chatOpen,setChatOpen]=useState(true),[contact,setContact]=useState('iris'),[message,setMessage]=useState(''),[chatBusy,setChatBusy]=useState(false),[chatError,setChatError]=useState('');
+ const termEl=useRef(null),mapEl=useRef(null),net=useRef(null),nodeData=useRef(new DataSet()),edgeData=useRef(new DataSet()),termRef=useRef(null),current=useRef(null),sendChatRef=useRef(null),chatScroll=useRef(null),positions=useRef({});
  useEffect(()=>{const id=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(id);},[]);
  useEffect(()=>{
   const t=new Terminal({fontFamily:'Cascadia Code, Consolas, monospace',fontSize:14,lineHeight:1.18,cursorBlink:true,cursorStyle:'block',scrollback:6000,convertEol:true,theme:{background:'#191b20',foreground:'#d2d4db',cursor:'#d8d8e2',selectionBackground:'#454d6b'}});
   termRef.current=t;const fit=new FitAddon();t.loadAddon(fit);t.open(termEl.current);fit.fit();const observer=new ResizeObserver(()=>{fit.fit();if(editor)renderEditor();});observer.observe(termEl.current);
   let disposed=false,id='',buffer='',pos=0,history=[],historyIndex=0,draft='',busy=true,tabKey='',renderedRows=1,renderedCursorRow=0,renderedCols=0,renderedCursorCol=0,editor=null;
   const set=s=>{current.current=s;setState(s);};
+  sendChatRef.current=(who,body,callback)=>{if(busy||editor||!id||!socket.connected){callback('Le terminal est occupé ou hors ligne.');return;}busy=true;socket.timeout(8000).emit('dialogue',{id,contact:who,body},(err,r)=>{if(disposed)return;busy=false;if(err||r?.error){callback(r?.error||'Transmission interrompue');return;}set(r.state);callback(null);});};
   const promptPlain=()=>{const s=current.current;if(!s)return 'local $ ';const home='/home/'+s.user;const cwd=s.cwd===home?'~':s.cwd.startsWith(home+'/')?'~'+s.cwd.slice(home.length):s.cwd;return s.user+'@'+s.at+':'+cwd+'$ ';};
   const promptStyled=()=>{const p=promptPlain(),k=p.indexOf(':');return k<0?p:colors.green+p.slice(0,k)+colors.reset+':'+colors.blue+p.slice(k+1,-2)+colors.reset+'$ ';};
   const print=s=>{if(s)t.writeln(clean(s));};
@@ -68,15 +69,17 @@ function App(){
    if(/^(vim|vi|nano|less)\s+/.test(line)&&!/[|;&>]/.test(line)){openEditor(line);return;}
    if(line==='clear'){t.clear();t.write(esc+'2J'+esc+'H');done();return;}
    if(line==='sound'){const active=sound();setAudible(active);print('Ambiance '+(active?'activée':'désactivée'));done();return;}
+   if(line==='chat open'){setChatOpen(v=>!v);done();return;}
+   if(line==='map layout'){positions.current={};try{localStorage.removeItem('mesh-layout-v3:'+id);}catch{};const nodes=current.current?.nodes||[],zones=['EDGE','INNER','AUDIT'];for(const node of nodes){const i=nodes.filter(n=>n.zone===node.zone).findIndex(n=>n.id===node.id),col=zones.indexOf(node.zone);net.current?.moveNode(node.id,col*290+(i%2)*110,Math.floor(i/2)*100);}net.current?.fit({animation:false});done();return;}
    if(line==='map'){setMapFull(false);setMapVisible(v=>!v);done();return;}
    if(line==='map full'){setMapVisible(true);setMapFull(v=>!v);done();return;}
    if(line==='map reset'){net.current?.fit({animation:false});done();return;}
    if(line==='reset'){print('Pour recommencer : reset --confirm');done();return;}
    if(line==='reset --confirm'){localStorage.removeItem('mesh-save-v3');location.reload();return;}
-   if(line==='help'){print('COMMANDES DE CONSOLE\n  sound        ambiance sonore\n  map          afficher/masquer la carte\n  map full     agrandir/reduire la carte\n  map reset    recentrer la carte\n  reset        nouvelle partie\n');}
+   if(line==='help'){print('COMMANDES DE CONSOLE\n  sound        ambiance sonore\n  map          afficher/masquer la carte\n  map full     agrandir/reduire la carte\n  map reset    recentrer la carte\n  map layout   restaurer les positions\n  chat open   afficher/masquer la messagerie\n  reset        nouvelle partie\n');}
    busy=true;socket.timeout(8000).emit('command',{id,line},(err,r)=>{if(disposed)return;if(err||r?.error){t.writeln(colors.red+(r?.error||'Connexion interrompue. Réessayez.')+colors.reset);done();return;}
-    const old=current.current?.phase||0;if(r.out)t.writeln((r.code?colors.red:'')+clean(r.out)+colors.reset);set(r.state);
-    if(r.state.phase>old){chime();t.writeln(colors.amber+'\n[ NOUVELLE TRANSMISSION / '+(r.state.ending?'MISSION TERMINEE':'mail '+(r.state.phase+1))+' ]'+colors.reset);}
+    const old=current.current?.phase||0,oldSeq=current.current?.story?.messages?.at(-1)?.id||0;if(r.out)t.writeln((r.code?colors.red:'')+clean(r.out)+colors.reset);set(r.state);
+    if((r.state.story?.messages?.at(-1)?.id||0)>oldSeq){chime();t.writeln(colors.dim+'\n[ Nouveau message · messagerie / chat ]'+colors.reset);}
     if(r.state.ending&&r.state.phase>old)t.writeln(colors.green+'\nFIN DE LA MISSION.\nMerci d’avoir joué.\n'+colors.reset);
     done();
    });
@@ -108,37 +111,37 @@ function App(){
   return()=>{disposed=true;observer.disconnect();sub.dispose();socket.off('connect',on);socket.off('disconnect',off);socket.disconnect();t.dispose();};
  },[]);
  useEffect(()=>{
-  const n=new Network(mapEl.current,{nodes:nodeData.current,edges:edgeData.current},{layout:{randomSeed:41},nodes:{shape:'dot',size:8,font:{color:'#c7c9d2',face:'monospace',size:11},borderWidth:1},edges:{color:'#4b4d57',width:1,smooth:{type:'continuous'}},physics:false,interaction:{dragNodes:false,dragView:true,zoomView:true,selectable:false,hover:false}});net.current=n;return()=>{n.destroy();net.current=null;};
+  const n=new Network(mapEl.current,{nodes:nodeData.current,edges:edgeData.current},{layout:{randomSeed:41},nodes:{shape:'dot',size:8,font:{color:'#c7c9d2',face:'monospace',size:11},borderWidth:1},edges:{color:'#4b4d57',width:1,smooth:{type:'continuous'}},physics:false,interaction:{dragNodes:true,dragView:true,zoomView:true,selectable:true,hover:false}});net.current=n;try{positions.current=JSON.parse(localStorage.getItem('mesh-layout-v3:'+localStorage.getItem('mesh-save-v3'))||'{}');}catch{};n.on('dragEnd',p=>{if(!p.nodes.length)return;Object.assign(positions.current,n.getPositions(p.nodes));try{localStorage.setItem('mesh-layout-v3:'+localStorage.getItem('mesh-save-v3'),JSON.stringify(positions.current));}catch{}});return()=>{n.destroy();net.current=null;};
  },[]);
  const mapSignature=useRef('');
  useEffect(()=>{if(!state||!net.current)return;
   const zones=['EDGE','INNER','AUDIT'],columns={};for(const z of zones)columns[z]=state.nodes.filter(n=>n.zone===z);
-  const newNodes=state.nodes.map(n=>{const i=columns[n.zone].findIndex(x=>x.id===n.id),col=zones.indexOf(n.zone);return {id:n.id,label:n.id+'\n'+n.ip,x:col*290+(i%2)*110,y:Math.floor(i/2)*100,physics:false,fixed:{x:true,y:true},color:{background:n.id===state.at?'#c9c7ee':n.proxy?'#82c9b0':n.access?'#65779f':n.available?'#565967':'#2b2d35',border:n.id===state.at?'#f3efff':n.proxy?'#b6ebd7':n.available?'#9da0b2':'#686a75'},size:n.id===state.at?11:8};});
+  const newNodes=state.nodes.map(n=>{const i=columns[n.zone].findIndex(x=>x.id===n.id),col=zones.indexOf(n.zone);return {id:n.id,label:n.id+'\n'+n.ip,x:positions.current[n.id]?.x??col*290+(i%2)*110,y:positions.current[n.id]?.y??Math.floor(i/2)*100,physics:false,fixed:{x:false,y:false},color:{background:n.id===state.at?'#c9c7ee':n.proxy?'#82c9b0':n.access?'#65779f':n.available?'#565967':'#2b2d35',border:n.id===state.at?'#f3efff':n.proxy?'#b6ebd7':n.available?'#9da0b2':'#686a75'},size:n.id===state.at?11:8};});
   nodeData.current.update(newNodes);const edges=new Map();for(const n of state.nodes)for(const x of n.links){const id=[n.id,x].sort().join(':');edges.set(id,{id,from:n.id,to:x});}edgeData.current.update([...edges.values()]);
   const sig=state.nodes.map(n=>n.id).join(',');if(sig!==mapSignature.current){mapSignature.current=sig;net.current.fit({animation:false});}
  },[state]);
  const memory=state?.ram||{used:0,total:8,hosts:[]};
  const hosts=state?.nodes||[];
- const phase=Math.min((state?.phase||0)+1,state?.total||7);
+ const messages=(state?.story?.messages||[]).filter(m=>m.contact===contact),contacts=state?.story?.contacts||['iris'],battle=state?.story?.battle;
+ const sendMessage=e=>{e.preventDefault();if(!message.trim()||chatBusy)return;setChatBusy(true);setChatError('');sendChatRef.current?.(contact,message,err=>{setChatBusy(false);if(err)setChatError(err);else setMessage('');});};
+ useEffect(()=>{if(chatScroll.current)chatScroll.current.scrollTop=chatScroll.current.scrollHeight;},[state?.story?.messages,contact,chatOpen]);
  useEffect(()=>{if(mapVisible)net.current?.fit({animation:false});},[mapVisible,mapFull]);
  return <main className={'layout '+(!mapVisible?'nomap':mapFull?'mapfull':'')}>
   <header className="appbar">
    <div className="brand"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h5v14H3zM10 5h4v9h-4zM16 5h5v14h-5z" fill="currentColor"/></svg><b>mesh</b><span className="version">3.8</span></div>
    <div className="crumb"><span>Workspace</span><span className="slash">/</span><b>{state?.at||'desk'}</b></div>
-   <div className="appmeta"><span className={online?'connection online':'connection'}><i/>{online?'Connected':'Offline'}</span><span>{clock.toLocaleTimeString('fr-FR')}</span></div>
+   <div className="appmeta"><button className="chatToggle" onClick={()=>setChatOpen(v=>!v)} aria-pressed={chatOpen}>Messages</button><span className={online?'connection online':'connection'}><i/>{online?'Connected':'Offline'}</span><span>{clock.toLocaleTimeString('fr-FR')}</span></div>
   </header>
   <div className="workspace">
    <section className="terminalPane">
-    <div className="tabstrip"><div className="activeTab"><span className="termIcon">›_</span>{state?state.user+'@'+state.at:'operator@desk'}</div><span className="tabInfo">{state?.cwd||'~'}</span></div>
+    <div className="shellbar"><span className="termIcon">›_</span><span>Terminal</span><span className="shellpath">{state?.cwd||'~'}</span></div>
     <div className="terminal" ref={termEl}/>
     <div className="keybar"><span><kbd>Tab</kbd> Complete</span><span><kbd>↑ ↓</kbd> History</span><span><kbd>Ctrl ⌫</kbd> Word</span><span><kbd>Ctrl L</kbd> Clear</span><span><kbd>man shell</kbd> Reference</span></div>
    </section>
-   <aside className="inspector">
-    <section className="mission">
-     <div className="sectionTitle"><span>Case file</span><span className="muted">{String(phase).padStart(2,'0')} / {String(state?.total||7).padStart(2,'0')}</span></div>
-     <div className="missionBody"><div className="caseLabel">{state?.ending?'Closed':'Active assignment'}</div><h2>{state?.ending?'Dossier clôturé':state?.mission||'Initialisation'}</h2><p>{state?.ending?'Transmission confirmée':state?.objective||'En attente de la session.'}</p><div className="missionFoot"><code>{state?.ending?'reset --confirm':'mail '+(state?.unread||1)}</code><div className="progress">{Array.from({length:state?.total||7},(_,i)=><i key={i} className={i<(state?.phase||0)?'complete':i===(state?.phase||0)?'current':''}/>)}</div></div></div>
-    </section>
-    <section className="map"><div className="sectionTitle"><span>Network</span><span className="muted">{hosts.length} hosts</span></div><div className="zones">{['EDGE','INNER','AUDIT'].map(z=><span key={z} className={state?.routes?.includes(z)?'zone active':'zone'}><i/>{z.toLowerCase()}</span>)}</div><div className="mapCanvas" ref={mapEl}/><div className="legend"><span><i className="currentNode"/> Current</span><span><i className="knownNode"/> Known</span><span><i className="proxyNode"/> Relay</span></div></section>
+   <aside className={"inspector "+(chatOpen?"hasChat":"")+(battle&&["pending","active","failed"].includes(battle.state)?" hasBattle":"")}>
+    {chatOpen&&<section className="chatPanel"><div className="sectionTitle"><span>Messages</span><span className="muted">Canal sécurisé</span></div><div className="contacts">{contacts.map(c=><button key={c} className={contact===c?'chosen':''} onClick={()=>setContact(c)}><span className={'contactDot '+c}/>{c==='iris'?'Iris':'Mara'}{c!==contact&&(state?.story?.messages||[]).some(m=>m.contact===c&&m.author!=='operator')&&<span className="contactMark">·</span>}</button>)}</div><div className="chatHistory" ref={chatScroll}>{messages.map(m=><article className={m.author==='operator'?'outgoing':'incoming'} key={m.id}><small>{m.author==='operator'?'Vous':m.author==='iris'?'Iris':'Mara'}</small><p>{m.body}</p></article>)}</div><form className="chatCompose" onSubmit={sendMessage}><input aria-label="Message" placeholder="Écrire un message…" value={message} maxLength={500} onChange={e=>setMessage(e.target.value)}/><button type="submit" disabled={chatBusy||!message.trim()}>Envoyer</button></form>{chatError&&<small className="chatError">{chatError}</small>}</section>}
+    {battle&&['pending','active','failed'].includes(battle.state)&&<section className="defensePanel"><div className="sectionTitle"><span>Incident réseau</span><span className="alarm">● {battle.state==='active'?'En cours':'En attente'}</span></div><div className="defenseBody"><p>{battle.last||'Activité hostile détectée. Canal de défense disponible.'}</p>{battle.state==='active'&&<><div className="resourceRow"><span>Intégrité</span><b>{battle.integrity}%</b></div><div className="meter trace"><i style={{width:battle.integrity+'%'}}/></div>{battle.mode==='live'&&<div className="resourceRow"><span>Temps restant</span><b>{Math.max(0,Math.ceil((battle.deadline-clock.getTime())/1000))} s</b></div>}</>}<code>{battle.state==='active'?'defense inspect':'defense status'}</code></div></section>}
+    <section className="map"><div className="sectionTitle"><span>Network</span><span className="muted">{hosts.length} hosts · drag to arrange</span></div><div className="zones">{['EDGE','INNER','AUDIT'].map(z=><span key={z} className={state?.routes?.includes(z)?'zone active':'zone'}><i/>{z.toLowerCase()}</span>)}</div><div className="mapCanvas" ref={mapEl}/><div className="legend"><span><i className="currentNode"/> Current</span><span><i className="knownNode"/> Known</span><span><i className="proxyNode"/> Relay</span></div></section>
     <section className="resources"><div className="sectionTitle"><span>Resources</span><span className="muted">{state?.jobs?.length||0} jobs</span></div><div className="resourceBody"><div className="resourceRow"><span>Memory</span><b>{memory.used} <small>/ {memory.total} MiB</small></b></div><div className="meter"><i style={{width:100*memory.used/Math.max(1,memory.total)+'%'}}/></div><div className="resourceRow"><span>Observation</span><b>{state?.trace||0}<small>%</small></b></div><div className="meter trace"><i style={{width:(state?.trace||0)+'%'}}/></div>{state?.jobs?.length>0&&<div className="joblist">{state.jobs.map(j=><div key={j.id}><code>#{j.id}</code><span>{j.type} / {j.target}</span><small>{j.state}</small></div>)}</div>}</div></section>
     <section className="activity"><div className="sectionTitle"><span>Session log</span><span className="muted">Recent</span></div><div className="activityBody">{[...(state?.activity||[])].reverse().slice(0,5).map((a,i)=><div key={i}><span>{a.host}</span><b>{a.command}</b><em className={a.code?'dead':'live'}>{a.code?'ERR':'OK'}</em></div>)}</div></section>
    </aside>
