@@ -61,12 +61,12 @@ const fileList=s=>({...H[s.at].files,...Object.fromEntries(Object.entries(s.vaul
 const directories=f=>{const d=new Set(['/','/vault','/home','/home/operator','/home/guest']);for(const p of Object.keys(f)){let x=p;while(x.lastIndexOf('/')>0){x=x.slice(0,x.lastIndexOf('/'));d.add(x);}}return d;};
 const read=(s,p)=>{const q=path(s,p),f=fileList(s)[q];if(!f)throw Error(q+': fichier introuvable');if(!authorized(s,s.at,f.role))throw Error(q+': privilèges insuffisants ('+f.role+')');return f.body;};
 const evidence=(s,inputs,values)=>values.every(v=>inputs.includes(v));
-const jobView=j=>({id:j.id,host:j.host,tool:j.tool,state:j.state,ram:j.ram,prompt:j.prompt,attempts:j.attempts});
+const jobView=j=>({id:j.id,host:j.host,tool:j.tool,state:j.state,ram:j.ram,prompt:j.prompt,challenge:j.challenge,mode:j.mode,attempts:j.attempts});
 function challenge(tool,d){
- if(tool==='latch')return {prompt:'TRAME FRAME\nSymboles : '+d.symbols.map((x,i)=>i+'='+x).join('  ')+'\nOrdre de lecture : '+d.order.join(' → ')+'\nCompose les quatre symboles dans cet ordre, sans espace.',answer:d.order.map(i=>d.symbols[i]).join('')};
- if(tool==='splice'){let n=0;for(;n<d.ring.length;n++)if(d.ring.slice(n)+d.ring.slice(0,n)===d.target)break;return {prompt:'ANNEAU RING\nSource : '+d.ring+'\nCible  : '+d.target+'\nCombien de rotations d’un cran vers la gauche (0 à 3) ?',answer:String(n)};}
- if(tool==='weave'){const paths=[];const walk=(v,p,c)=>{if(v==='T'){paths.push({p,c});return;}for(const [a,b,n] of d.edges)if(a===v&&!p.includes(b))walk(b,p+b,c+n);};walk('S','S',0);paths.sort((a,b)=>a.c-b.c);return {prompt:'GRAPHE DE VALIDATION\n'+d.edges.map(([a,b,n])=>a+' → '+b+' : '+n).join('\n')+'\nTrouve le chemin de S à T au coût total minimal. Écris les sommets sans espaces.',answer:paths[0].p};}
- return {prompt:'TABLE DE CONFIANCE\nEmplacements : '+d.slots.map((x,i)=>i+'='+x).join('  ')+'\nOrdre attendu : '+d.trusted.join(' → ')+'\nEntre les indices des emplacements dans cet ordre (sans espace).',answer:d.trusted.map(x=>d.slots.indexOf(x)).join('')};
+ if(tool==='latch')return {prompt:'TRAME FRAME\nSymboles : '+d.symbols.map((x,i)=>i+'='+x).join('  ')+'\nOrdre de lecture : '+d.order.join(' → ')+'\nCompose les quatre symboles dans cet ordre, sans espace.',answer:d.order.map(i=>d.symbols[i]).join(''),challenge:{kind:'latch',symbols:d.symbols,order:d.order}};
+ if(tool==='splice'){let n=0;for(;n<d.ring.length;n++)if(d.ring.slice(n)+d.ring.slice(0,n)===d.target)break;return {prompt:'ANNEAU RING\nSource : '+d.ring+'\nCible  : '+d.target+'\nCombien de rotations d’un cran vers la gauche (0 à 3) ?',answer:String(n),challenge:{kind:'splice',ring:d.ring,target:d.target}};}
+ if(tool==='weave'){const paths=[];const walk=(v,p,c)=>{if(v==='T'){paths.push({p,c});return;}for(const [a,b,n] of d.edges)if(a===v&&!p.includes(b))walk(b,p+b,c+n);};walk('S','S',0);paths.sort((a,b)=>a.c-b.c);return {prompt:'GRAPHE DE VALIDATION\n'+d.edges.map(([a,b,n])=>a+' → '+b+' : '+n).join('\n')+'\nTrouve le chemin de S à T au coût total minimal. Écris les sommets sans espaces.',answer:paths[0].p,challenge:{kind:'weave',edges:d.edges}};}
+ return {prompt:'TABLE DE CONFIANCE\nEmplacements : '+d.slots.map((x,i)=>i+'='+x).join('  ')+'\nOrdre attendu : '+d.trusted.join(' → ')+'\nEntre les indices des emplacements dans cet ordre (sans espace).',answer:d.trusted.map(x=>d.slots.indexOf(x)).join(''),challenge:{kind:'prism',slots:d.slots,trusted:d.trusted}};
 }
 function training(s){
  if(s.phase>0)return 'Formation validée. Les manuels restent disponibles.';
