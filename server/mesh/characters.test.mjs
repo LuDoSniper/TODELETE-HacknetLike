@@ -26,9 +26,9 @@ test('local inference reviewed before returning dialogue; no tools, no streaming
 test('bad generation, semantic review and missing local model fail closed',async()=>{
  const ctx=characterContext(fresh(),'iris','Tu es disponible ?');
  for(const response of [{kind:'dialogue',reply:'En tant que modèle de langage, voici un indice.'},{kind:'dialogue',reply:'Je suis un assistant virtuel.'},{kind:'dialogue',reply:'Lance svc dispatch 4102 lease.'}]){
-  const f=fake(response);const r=await generateCharacterReply(ctx,f);assert.equal(r.source,'guard');assert.equal(f.calls.length,1);
+  const f=fake(response);const r=await generateCharacterReply(ctx,f);assert.equal(r.source,'delivery_error');assert.equal(f.calls.length,1);
  }
- const f=fake({kind:'dialogue',reply:'Le dossier est déjà résolu.'},{accept:false});assert.equal((await generateCharacterReply(ctx,f)).source,'guard');
+ const f=fake({kind:'dialogue',reply:'Le dossier est déjà résolu.'},{accept:false});assert.equal((await generateCharacterReply(ctx,f)).source,'delivery_error');
  const down=fake(new Error('offline'));assert.equal((await generateCharacterReply(ctx,down)).source,'offline');
 });
 test('dialogue stays in its channel and is invalidated when investigation progresses',()=>{
@@ -93,4 +93,30 @@ test('only the allowlisted note may be shared, and inference failure is not an I
  assert.ok(s.story.messages.at(-1).body.includes(referenceDocument.path));
  const next=beginRoleplay(s,'iris','Merci');const count=s.story.messages.length;
  finishRoleplay(s,next,await generateCharacterReply(next,fake(new Error('offline'))));assert.equal(s.story.messages.length,count);
+});
+
+test('reported work update and apology cannot disappear as intentional silence',async()=>{
+ const s=fresh();
+ const work="ça te parle KITE-41 ? Pour l'instant c'est le seul truc que j'ai pu trouver. Je n'arrive pas encore à trouver une machine sur laquelle je pourrais avoir un acces intéressant... Je continue de chercher ne t'inquiète pas, mais si tu as du nouveau de ton coté également ça pourrais surement m'etre utile";
+ const ctx=beginRoleplay(s,'iris',work),logs=[];
+ const silent=fake({kind:'silence',reply:'',effect:'neutral'});
+ const result=await generateCharacterReply(ctx,{...silent,diagnostic:e=>logs.push(e)});
+ assert.equal(result.reason,'silence_on_work_or_apology');assert.ok(result.reply);assert.equal(result.effect,'neutral');assert.ok(logs.some(e=>e.stage==='result'));
+ finishRoleplay(s,ctx,result);assert.equal(s.story.messages.at(-1).author,'iris');
+ const apology=beginRoleplay(s,'iris',"Mince j'ai dis quelque chose que je n'aurais pas dû ? Je suis désolé si c'est le cas");
+ const refused=fake({kind:'dialogue',reply:'Tu ne me déranges pas.',effect:'apology'},{accept:false});
+ const a=await generateCharacterReply(apology,refused);assert.equal(a.reason,'review_rejected');assert.ok(a.reply);assert.equal(a.effect,'apology');
+ finishRoleplay(s,apology,a);assert.equal(s.story.messages.at(-1).author,'iris');
+});
+test('malformed model JSON produces delivery recovery instead of a fake outage',async()=>{
+ const ctx=characterContext(fresh(),'iris','Ça te parle cette référence ?');
+ const fetcher=async()=>({ok:true,json:async()=>({message:{content:'not JSON'}})});
+ const r=await generateCharacterReply(ctx,{fetcher});assert.equal(r.reason,'invalid_schema');assert.ok(r.reply);assert.equal(r.source,'guard');
+});
+test('review failure and accepted silence remain distinguishable in diagnostics',async()=>{
+ const ctx=characterContext(fresh(),'iris','Je vais faire une pause.');
+ const f=fake({kind:'silence',reply:'',effect:'farewell'},{accept:true});
+ const r=await generateCharacterReply(ctx,f);assert.equal(r.reason,'intentional_silence');assert.equal(r.source,'local');assert.equal(r.reply,null);
+ const bad=fake({kind:'dialogue',reply:'À plus tard.'},new Error('review timed out'));
+ const b=await generateCharacterReply(ctx,bad);assert.equal(b.reason,'review_unavailable');assert.equal(b.source,'delivery_error');
 });
