@@ -28,7 +28,13 @@ const pages={
  pwd:['Répertoire','pwd','Affiche le répertoire courant.'],
  ls:['Lister les fichiers','ls [chemin]','Liste fichiers et dossiers avec les droits nécessaires. /vault est le coffre local, accessible depuis les sessions.'],
  cd:['Changer de dossier','cd <chemin>','Chemin absolu ou relatif ; .. remonte d’un niveau.'],
- cat:['Lire un document','cat <fichier>','Lit le fichier si les droits le permettent.'],
+ cat:['Lire un document','cat <fichier...>','Lit les fichiers si les droits le permettent. Sans fichier, lit le flux entrant.'],
+ echo:['Afficher du texte','echo [texte...]','Écrit les arguments sur la sortie standard.'],
+ grep:['Filtrer les lignes','grep [-i] [-v] <motif> [fichier...]','Recherche une chaîne littérale, -i ignore la casse et -v inverse la sélection. Sans fichier utilise le flux entrant.','cat /vault/notes.txt | grep -i erreur'],
+ head:['Premières lignes','head [-n nombre] [fichier]','Affiche les premières lignes (10 par défaut).'],
+ tail:['Dernières lignes','tail [-n nombre] [fichier]','Affiche les dernières lignes (10 par défaut).'],
+ cp:['Copier un document','cp <source> <destination>','Copie une source lisible vers un fichier de /vault.'],
+ shell:['Flux du terminal','commande | commande ; commande > /vault/fichier','Les pipes transmettent le texte. > remplace une copie locale, >> ajoute. Les originaux restent protégés. Les guillemets préservent les espaces.','request exemple 7400 GET /status | grep -i disponible > /vault/note.txt'],
  fetch:['Copier une preuve','fetch <fichier> [nom]','Copie un document lisible vers /vault. Les originaux distants sont immuables.'],
  rm:['Supprimer une copie','rm <fichier>','Seules les copies de /vault sont modifiables. Une copie peut être récupérée à nouveau.'],
  proxy:['Relais de calcul','proxy list | add <hôte> | remove <hôte>','Un relais compatible exige un accès utilisateur. Ajoute sa mémoire au pool et réduit le bruit des nouvelles attaques. Impossible de retirer un relais utilisé tant qu’un job est actif.'],
@@ -61,6 +67,7 @@ const fileList=s=>({...H[s.at].files,...Object.fromEntries(Object.entries(s.vaul
 const directories=f=>{const d=new Set(['/','/vault','/home','/home/operator','/home/guest']);for(const p of Object.keys(f)){let x=p;while(x.lastIndexOf('/')>0){x=x.slice(0,x.lastIndexOf('/'));d.add(x);}}return d;};
 const read=(s,p)=>{const q=path(s,p),f=fileList(s)[q];if(!f)throw Error(q+': fichier introuvable');if(!authorized(s,s.at,f.role))throw Error(q+': privilèges insuffisants ('+f.role+')');return f.body;};
 const evidence=(s,inputs,values)=>values.every(v=>inputs.includes(v));
+const writeCopy=(s,dest,data,append=false)=>{const q=path(s,dest);if(!/^\/vault\/[a-z0-9._-]{1,80}$/i.test(q))throw Error('Seul /vault est modifiable.');if(Object.keys(s.vault).length>=100&&!own(s.vault,q))throw Error('Coffre plein');const body=(append?(s.vault[q]||'')+'\n':'')+String(data);if(body.length>20000)throw Error('Copie trop volumineuse');s.vault[q]=body;return 'Écrit : '+q;};
 const jobView=j=>({id:j.id,host:j.host,tool:j.tool,state:j.state,ram:j.ram,prompt:j.prompt,challenge:j.challenge,mode:j.mode,attempts:j.attempts});
 function challenge(tool,d){
  if(tool==='latch')return {prompt:'TRAME FRAME\nSymboles : '+d.symbols.map((x,i)=>i+'='+x).join('  ')+'\nOrdre de lecture : '+d.order.join(' → ')+'\nCompose les quatre symboles dans cet ordre, sans espace.',answer:d.order.map(i=>d.symbols[i]).join(''),challenge:{kind:'latch',symbols:d.symbols,order:d.order}};
@@ -99,7 +106,7 @@ function start(s,t,id,p,mode='normal'){
  return 'PID '+j.id+' — '+t.toUpperCase()+' / '+id+'\n'+j.prompt+'\n\nsolve '+j.id+' <réponse>   |   kill '+j.id;
 }
 const output=(out='',code=0)=>({out,code});
-function action(s,cmd,a){
+function action(s,cmd,a,input=''){
  switch(cmd){
  case 'help':return a[0]?manual(a[0]):commandNames.join('  ')+'\n\nman <commande> ; tutorial ; mission';
  case 'man':return a[0]?manual(a[0]):commandNames.join('  ');
@@ -123,7 +130,11 @@ function action(s,cmd,a){
  case 'pwd':return s.cwd;
  case 'ls':{const p=path(s,a[0]),f=fileList(s),d=directories(f);if(own(f,p))return p+' ['+f[p].role+']';if(!d.has(p))throw Error('Répertoire inconnu');const prefix=p==='/'?'/':p+'/';return [...new Set([...d,...Object.keys(f)].filter(x=>x!==p&&x.startsWith(prefix)).map(x=>prefix+x.slice(prefix.length).split('/')[0]))].sort().map(x=>x.slice(prefix.length)+(d.has(x)?'/':' ['+f[x].role+']')).join('\n')||'(vide)';}
  case 'cd':{const p=path(s,a[0]||'/home/operator');if(!directories(fileList(s)).has(p))throw Error('Répertoire inconnu');s.cwd=p;return '';}
- case 'cat':return read(s,a[0]);
+ case 'cat':return a.length?a.map(x=>read(s,x)).join('\n'):input;
+ case 'echo':return a.join(' ');
+ case 'grep':{const flags=a.filter(x=>/^-[iv]+$/.test(x)),rest=a.filter(x=>!/^-[iv]+$/.test(x));if(!rest.length)throw Error('grep <motif> [fichier...]');const ignore=flags.some(x=>x.includes('i')),invert=flags.some(x=>x.includes('v')),needle=ignore?rest[0].toLowerCase():rest[0],data=rest.length>1?rest.slice(1).map(x=>read(s,x)).join('\n'):input;return data.split('\n').filter(x=>((ignore?x.toLowerCase():x).includes(needle))!==invert).join('\n');}
+ case 'head':case 'tail':{const i=a.indexOf('-n'),n=i<0?10:Number(a[i+1]);if(!Number.isInteger(n)||n<1||n>1000)throw Error('Nombre invalide');const rest=i<0?a:a.filter((_,k)=>k!==i&&k!==i+1),data=rest.length?rest.map(x=>read(s,x)).join('\n'):input;const lines=data.split('\n');return (cmd==='head'?lines.slice(0,n):lines.slice(-n)).join('\n');}
+ case 'cp':{if(a.length!==2)throw Error('cp <source> <destination>');return writeCopy(s,a[1],read(s,a[0]));}
  case 'fetch':{if(!a[0])throw Error('fetch <fichier> [nom]');const data=read(s,a[0]),name=a[1]||path(s,a[0]).split('/').at(-1);if(!/^[a-z0-9._-]{1,80}$/i.test(name))throw Error('Nom invalide');const dest='/vault/'+name;if(Object.keys(s.vault).length>=100&&!own(s.vault,dest))throw Error('Coffre plein');s.vault[dest]=data;return 'Copié : '+dest;}
  case 'rm':{const p=path(s,a[0]);if(!own(s.vault,p))throw Error('Seules les copies personnelles peuvent être supprimées.');delete s.vault[p];return '';}
  case 'proxy':{if(!a[0]||a[0]==='list')return s.proxies.join('\n')||'Aucun relais.';const h=resolve(s,a[1]);if(a[0]==='add'){if(!h.relay||!authorized(s,h.id,'user'))throw Error('Relais non compatible ou accès manquant.');if(!s.proxies.includes(h.id))s.proxies.push(h.id);if(h.id==='lab-relay')s.flags.labProxy=true;return 'Relais ajouté : '+h.id+' / '+h.ram+' MiB';}if(a[0]==='remove'){if(active(s).length)throw Error('Des tâches utilisent le pool de RAM.');s.proxies=s.proxies.filter(x=>x!==h.id);return 'Relais retiré.';}throw Error('proxy list|add|remove');}
@@ -141,11 +152,15 @@ function action(s,cmd,a){
 }
 export function execute(s,line){
  if(typeof line!=='string'||line.length>500)return output('Commande invalide',1);
- const words=line.trim().match(/"(?:[^"\\]|\\.)*"|'[^']*'|\S+/g)||[];if(!words.length)return output();
- const [cmd,...a]=words.map(x=>/^(['"]).*\1$/.test(x)?x.slice(1,-1):x);
+ const words=line.trim().match(/"(?:[^"\\]|\\.)*"|'[^']*'|>>|[|>;]|[^\s|>;]+/g)||[];if(!words.length)return output();
  s.history.push(line);s.history=s.history.slice(-100);s.tick++;
- if(!['help','man','job','jobs','trace','ram','tutorial','history','clear'].includes(cmd.toLowerCase()))for(const j of active(s))noise(s,j.host,j.mode==='--quiet'?3:j.mode==='--burst'?8:5);
- try{return output(action(s,cmd.toLowerCase(),a));}catch(e){return output(String(e.message||e),1);}
+ try{
+  const result=[];let segment=[],input='',redirect=null,append=false;
+  const executeSegment=()=>{if(!segment.length)throw Error('Commande incomplète');const [raw,...a]=segment.map(x=>/^(['"]).*\1$/.test(x)?x.slice(1,-1):x),cmd=raw.toLowerCase();segment=[];if(!['help','man','job','jobs','trace','ram','tutorial','history','clear'].includes(cmd))for(const j of active(s))noise(s,j.host,j.mode==='--quiet'?3:j.mode==='--burst'?8:5);input=action(s,cmd,a,input);};
+  const flush=()=>{if(segment.length)executeSegment();if(redirect){result.push(writeCopy(s,redirect,input,append));redirect=null;}else if(input)result.push(input);input='';};
+  for(let i=0;i<words.length;i++){const x=words[i];if(x==='|'){if(redirect)throw Error('Pipe après redirection');executeSegment();if(i===words.length-1)throw Error('Pipe incomplet');}else if(x==='>'||x==='>>'){if(redirect||!segment.length||!words[i+1]||/^[|>;]+$/.test(words[i+1]))throw Error('Redirection invalide');redirect=words[++i].replace(/^(['"])(.*)\1$/,'$2');append=x==='>>';if(i+1<words.length&&words[i+1]!==';')throw Error('Redirection en fin de commande');}else if(x===';'){flush();}else{if(redirect)throw Error('Redirection en fin de commande');segment.push(x);}}
+  flush();return output(result.join('\n'));
+ }catch(e){return output(String(e.message||e),1);}
 }
 export function view(s){return {phase:s.phase,at:s.at,cwd:s.cwd,user:role(s,s.at)==='root'?'root':H[s.at].publicShell&&s.at!=='station'?'guest':'operator',mission:missions[s.phase].goal,messages:missions.slice(0,s.phase+1).map(({title,from,body},i)=>({id:i+1,title,from,body})),tutorial:training(s),zones:s.zones,nodes:s.known.map(id=>{const h=H[id];return {id,ip:h.ip,zone:h.zone,links:h.links.filter(x=>s.known.includes(x)),reachable:s.zones.includes(h.zone),role:role(s,id),proxy:s.proxies.includes(id),trace:s.trace[id]||0,locked:!!s.locked[id],services:s.probed[id]?Object.entries(h.ports).map(([port,d])=>({port,name:d.name,protocol:d.protocol,version:d.version,signature:s.inspected[id+':'+port]?d.weakness||'stable':null})):null};}),jobs:s.jobs.slice(-20).map(jobView),ram:{used:used(s),total:cap(s)},files:Object.entries(s.vault).map(([path,body])=>({path,body})),ending:s.ending,history:s.history.slice(-100)};}
 export function complete(s,line){const i=line.lastIndexOf(' ')+1,part=line.slice(i),words=line.slice(0,i).trim().split(/\s+/),cmd=words[0];let candidates=i===0?commandNames:['scan','probe','inspect','request','connect','trace'].includes(cmd)&&words.length===1?s.known:cmd==='man'?commandNames:cmd==='run'&&words.length===1?Object.keys(toolset):cmd==='run'&&words.length===2?s.known:cmd==='run'&&words.length===3?Object.keys(H[words[2]]?.ports||{}):['inspect','request'].includes(cmd)&&words.length===2?Object.keys(H[words[1]]?.ports||{}):cmd==='proxy'&&words.length===1?['add','list','remove']:cmd==='proxy'&&words.length===2?s.known:['cat','fetch','rm','submit','cd','ls'].includes(cmd)?[...Object.keys(fileList(s)),...directories(fileList(s))]:[];candidates=[...new Set(candidates.filter(x=>x.toLowerCase().startsWith(part.toLowerCase())))].sort();return {line:candidates.length===1?line.slice(0,i)+candidates[0]+' ':line,matches:candidates};}
