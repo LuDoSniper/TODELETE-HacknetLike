@@ -1,15 +1,15 @@
 {
-  "name": "mesh-workspace",
-  "version": "3.0.0",
+  "name": "rift-os",
+  "version": "4.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server/mesh/launch.mjs dev",
+    "dev": "concurrently -k \"node server/rift/server.mjs\" \"vite --host 127.0.0.1\"",
     "setup": "prisma generate && prisma db push",
     "build": "vite build",
-    "start": "node server/mesh/launch.mjs start",
-    "test": "node --test server/mesh/*.test.mjs server/abysse/vim.test.mjs src/map-colors.test.mjs",
-    "dev:watch": "node server/mesh/launch.mjs watch"
+    "start": "node server/rift/server.mjs",
+    "test": "node --test server/rift/*.test.mjs",
+    "dev:watch": "concurrently -k \"node --watch-path=server/rift server/rift/server.mjs\" \"vite --host 127.0.0.1\""
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
